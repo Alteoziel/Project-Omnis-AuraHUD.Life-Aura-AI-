@@ -14,6 +14,7 @@ This list is the **full inventory** from the Project Omnis / AuraHUD planning do
 - **UI first, AI second** — usable offline; AI structures unstructured input
 - **Determinism for clocks/math** — LLMs parse intent; code owns dates, money, timers
 - **Micro-feedback** — every AI action gets ✓ (confirm) / ✗ (instant undo) / ✎ (quick inline edit); never force a paragraph to fix a mistake
+- **Correction Memory (never forget an ✗)** — an ✗ is permanent knowledge even with no explanation; store negative constraints so Aura never silently re-assumes the rejected claim; optionally fill the blank later with one-tap chips — see [`CORRECTION_MEMORY.md`](./CORRECTION_MEMORY.md)
 - **Progressive disclosure** — presets + intent-unlocked modules, not a blank canvas of all features
 - **Anti “phone inside a phone”** — one Today Stream / HUD, not a grid of mini-apps
 - **Values-aligned coaching** — Life Aura improves life using the user’s stated morals, ethics, and values—not generic hustle defaults

@@ -39,7 +39,7 @@ A zero-friction, voice-first HUD for real life: one capture bar, one Today Strea
 
 - Command bar (text; voice nice-to-have) + intent router
 - Today Stream (Now / Next / Captured)
-- Smart tasks + ✓ / ✗ / ✎
+- Smart tasks + ✓ / ✗ / ✎ with **Correction Memory** (✗ is never forgotten — see [`CORRECTION_MEMORY.md`](./CORRECTION_MEMORY.md))
 - Alte’ Budget lens + one spend-less nudge
 - Trust minimums (below) on day one
 

@@ -51,7 +51,11 @@ Social hub, video calls, plugins, Memory Palace, plant vision, QR food scanner, 
 ### Day 3 — Tasks that feel smart
 
 - CRUD, auto-rank (due + priority), show top 3 in stream
-- Micro-feedback writes a small `corrections` table (pattern learning later)
+- Micro-feedback writes `corrections` with full **Correction Memory** behavior (see [`CORRECTION_MEMORY.md`](./CORRECTION_MEMORY.md)):
+  - ✗ = instant undo + persist `rejected_unspecified` (even if user explains nothing)
+  - Derive `DO_NOT_*` negative constraints so the same wrong parse cannot silently recur
+  - ✎ stores before/after; ✓ reinforces but never washes out an ✗ on the same claim
+  - Next matching intent: code pre/post-filter excludes rejected interpretations (“Noted — I won’t assume that again.”)
 
 ### Day 4 — Budget crossover (the wow)
 
