@@ -58,16 +58,19 @@ Social hub, video calls, plugins, Memory Palace, plant vision, QR food scanner, 
 - From command bar: “I spent $12 on lunch” or “Can I afford takeout?” → writes/reads Alte’ categories
 - One “Spend-less nudge” card tied to a fake/real aspiration (“Vacation: cut 2 takeouts → +$X/mo”)
 
-### Day 5 — Voice (nice-to-have) + polish
+### Day 5 — Voice (nice-to-have) + polish + trust minimums
 
 - Browser speech → same router
 - PWA install, mobile pass, shell loads fast
 - Rate-limit AI; graceful offline for task list
+- **Cloud AI On/Off** toggle; privacy page that matches reality; AI call receipt (“Sent N words…”); working delete/wipe
+- No content-exfiltrating analytics; secrets server-side only
 
 ### Day 6 — Demo packaging
 
 - Landing: one headline, one sentence, one CTA (“Try the free demo”), one edge-to-edge product shot of the stream
-- 30–45s Loom: open → speak → task + budget nudge → ✓
+- Call out privacy stance on landing (local-first intent + cloud AI optional)
+- 30–45s Loom: open → speak → task + budget nudge → ✓ → show Cloud AI Off
 - Seed account with sample day
 
 ### Day 7 — Soft launch
@@ -81,13 +84,71 @@ Social hub, video calls, plugins, Memory Palace, plant vision, QR food scanner, 
 - Track: installs/visits, captures/day, ✓ vs ✗ rate, D1 return
 - If those work, next slice adds pantry/expiration, goals, or mood/health—not more chrome
 
+## Trust & privacy architecture (note for all phases)
+
+Users won’t trust a promise — they trust an architecture where you *can’t* quietly sell or browse their life. Local-only LLMs on phones burn battery and feel bad; cloud-everything destroys trust. **Target model: local-first storage + selective AI.**
+
+### Principles
+
+1. **Verifiable constraints over marketing** — open source, local-first DB, encryption, minimized AI payloads, plain policy that matches code.
+2. **Don’t rely on personal virtue** — no god-mode admin dump of journals/budgets; no “interesting events” warehouse; support via user-initiated export or scoped tokens.
+3. **AI APIs are a leak surface** — default to sending the smallest snippet needed; prefer zero-retention / no-training providers; users can turn cloud AI off entirely.
+4. **Honest security framing** — “secure enough for a life OS” with health/finance discipline, not “unhackable.” If cloud AI is on, the provider can see the *prompt you send* — so send as little as possible.
+
+### Tiered AI path (battery vs privacy)
+
+```
+Phone (always):
+  • Local DB + UI (instant, private)
+  • Tiny on-device model OR rules for intent only
+    (“is this a task / pantry / mood?”)
+
+Heavy reasoning (user chooses):
+  A) Home desktop via Tailscale/Ollama  → private, free, no phone heat
+  B) Cloud API with ZDR + redaction     → when away / need quality
+  C) Cloud OFF                          → app still works; AI degrades gracefully
+```
+
+| Data | Where AI runs |
+|---|---|
+| Task/reminders, routing | On-device / rules |
+| Mood, health, relationship texts, bank details | Local or desktop-only; never raw to cloud |
+| Recipe ideas, vacation brainstorm (scrubbed likes) | Cloud OK if user opted in |
+| Budget math, calendar math | **Code, not LLM** |
+
+User control (later UI): **Private (local/desktop) / Balanced / Cloud-enhanced** — default Private or Balanced, never max-cloud.
+
+### “We don’t sell data — including through AI APIs”
+
+Keep three promises distinct:
+
+1. **You** don’t sell or share user data for ads.
+2. **Sync/DB** providers only process data to run the app (DPA).
+3. **AI providers** only receive opted-in, minimized prompts under no-training / zero-retention; cloud AI is disableable.
+
+If a feature needs the full Memory Palace or Text Buddy corpus, it stays **local/desktop-only** until it can be done safely.
+
+### Week 1 trust minimums (ship with the demo)
+
+Full E2E encryption can wait. The free demo still ships:
+
+- Privacy page that matches reality
+- **Cloud AI: On/Off** toggle
+- No analytics that exfiltrate content
+- Tiny receipt when AI runs: “Sent N words to Life Aura cloud for task parse”
+- Delete account / wipe data that actually works
+- Secrets only in env (never client); RLS on all user tables
+
+Pitch line: *“Your life stays on your devices. Life Aura only sees the smallest slice needed for the one action you just asked for — and you can turn cloud AI off.”*
+
 ## Success bar
 
 - Someone understands AuraHUD from the landing in **5 seconds**
 - A stranger can complete **capture → see it in stream → confirm/correct** without a tutorial
 - Budget feels **native**, not a bolted-on link farm
 - You use it yourself for real tasks that day
+- A tester can find the privacy stance and turn cloud AI off without digging
 
 ## One-sentence strategy
 
-Ship the calm HUD + capture + tasks + budget crossover; sell the feeling of leaving the app faster, not the feature list.
+Ship the calm HUD + capture + tasks + budget crossover; sell the feeling of leaving the app faster, not the feature list — and make trust a product feature from day one.

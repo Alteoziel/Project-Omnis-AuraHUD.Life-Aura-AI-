@@ -95,11 +95,18 @@ Week 1 demo scope: [`WEEK1_DEMO_PLAN.md`](./WEEK1_DEMO_PLAN.md).
 
 ---
 
-## 9. Platform, trust & ecosystem (later)
+## 9. Platform, trust & ecosystem
 
-- **Community Developer Marketplace** — sandboxed plugins (WASM/iframe), permission scopes, security review; optional 70/30–80/20 revenue split
+- **Community Developer Marketplace** *(later)* — sandboxed plugins (WASM/iframe), permission scopes, security review; optional 70/30–80/20 revenue split
 - **Open-source core + open-core cloud** — AGPL-3.0 for core trust; managed sync/escalation as hosted value
-- **Privacy & local-first** — optimistic local writes; encrypt sensitive life data; optional local LLM path
+- **Privacy & local-first** — optimistic local writes; encrypt sensitive life data; cloud is sync, not the source of truth
+- **Tiered AI (not phone-only local, not cloud-everything)** — phone keeps DB + tiny intent routing; heavy reasoning on home desktop (Ollama) or opted-in cloud with redaction / zero-retention; **Cloud AI Off** always available
+- **Minimized AI payloads** — never ship the whole vault to an API; redact names/account numbers/message bodies when structure is enough
+- **No god-mode browsing** — operators can’t casually dump user life data; support via user export / scoped tokens
+- **Three distinct non-sale promises** — (1) AuraHUD doesn’t sell data for ads, (2) sync/DB under DPA only, (3) AI providers get opted-in minimized prompts with no-training / ZDR where possible
+- **Trust UX** — privacy page that matches code; AI call receipts (“Sent N words…”); working delete/wipe; mode picker: Private / Balanced / Cloud-enhanced
+
+Full week-1 trust minimums: [`WEEK1_DEMO_PLAN.md`](./WEEK1_DEMO_PLAN.md#trust--privacy-architecture-note-for-all-phases).
 
 ---
 
@@ -112,6 +119,7 @@ Week 1 demo scope: [`WEEK1_DEMO_PLAN.md`](./WEEK1_DEMO_PLAN.md).
 | Smart Tasks | **Ship** |
 | Alte’ Budget lens + spend-less nudge | **Ship** |
 | ✓ ✗ ✎ micro-feedback | **Ship** |
+| Cloud AI On/Off + privacy page + AI receipts + wipe | **Ship** |
 | Mood & Health Tracker | Later |
 | Goal Setter & Tracker | Later |
 | QR Food Scanner + buy Yes/No | Later |
@@ -119,6 +127,7 @@ Week 1 demo scope: [`WEEK1_DEMO_PLAN.md`](./WEEK1_DEMO_PLAN.md).
 | Social feed + interest/support video calls | Later |
 | School / Canvas tracker | Later |
 | Personalized AI Life Coach | Later |
+| Full local/desktop hybrid AI | Later |
 | All other modules in §§2–8 | Later |
 
 ---
