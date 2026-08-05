@@ -12,7 +12,7 @@
 3. **Invisible AI** — silent routing + ✓ / ✗ / quick edit, not a chat box
 4. **Money already connected** — Alte’ Budgeting as the first real module
 
-Everything else stays off the landing surface until someone asks for it. Full module inventory: [`FEATURE_LIST.md`](./FEATURE_LIST.md).
+Everything else stays off the landing surface until someone asks for it. Full module inventory: [`FEATURE_LIST.md`](./FEATURE_LIST.md). Long-term phases + testing gates: [`LONG_TERM_PLAN.md`](./LONG_TERM_PLAN.md).
 
 ## Demo scope
 

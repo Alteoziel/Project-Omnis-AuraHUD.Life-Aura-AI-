@@ -6,7 +6,7 @@
 
 Unified “Everyday Life OS”: one voice-first HUD, one shared database, AI as an invisible router—not a chatbox over 15 mini-apps.
 
-This list is the **full inventory** from the Project Omnis / AuraHUD planning doc (master architecture + later additions). Week 1 ships only a thin slice — see [`WEEK1_DEMO_PLAN.md`](./WEEK1_DEMO_PLAN.md).
+This list is the **full inventory** from the Project Omnis / AuraHUD planning doc (master architecture + later additions). Week 1 ships only a thin slice — see [`WEEK1_DEMO_PLAN.md`](./WEEK1_DEMO_PLAN.md). Phased roadmap + testing gates before expansion: [`LONG_TERM_PLAN.md`](./LONG_TERM_PLAN.md).
 
 ## Design rules
 
