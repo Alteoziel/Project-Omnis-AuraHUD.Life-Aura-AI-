@@ -4,10 +4,10 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const links = [
+  { href: "/hud", label: "HUD" },
   { href: "/budget", label: "Budget" },
   { href: "/accounts", label: "Accounts" },
-  { href: "/insights", label: "Insights" },
-  { href: "/transactions", label: "Transactions" },
+  { href: "/trust", label: "Trust" },
   { href: "/settings", label: "Settings" },
 ];
 
@@ -56,7 +56,7 @@ export function DesktopSideNav() {
       aria-label="Primary"
     >
       <p className="px-2 text-[11px] font-bold uppercase tracking-[0.2em] text-moss-500">
-        Navigate
+        AuraHUD
       </p>
       <ul className="mt-3 space-y-1">
         {links.map((link) => {
@@ -78,6 +78,26 @@ export function DesktopSideNav() {
           );
         })}
       </ul>
+      <div className="mt-auto space-y-1 px-2 pt-6">
+        <Link
+          href="/insights"
+          className="block text-xs font-semibold text-ink-500 hover:text-ink-800"
+        >
+          Insights
+        </Link>
+        <Link
+          href="/transactions"
+          className="block text-xs font-semibold text-ink-500 hover:text-ink-800"
+        >
+          Transactions
+        </Link>
+        <Link
+          href="/privacy"
+          className="block text-xs font-semibold text-ink-500 hover:text-ink-800"
+        >
+          Privacy
+        </Link>
+      </div>
     </nav>
   );
 }

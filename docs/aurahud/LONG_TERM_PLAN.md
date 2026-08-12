@@ -8,6 +8,8 @@ Related docs:
 
 - Week 1 demo: [`WEEK1_DEMO_PLAN.md`](./WEEK1_DEMO_PLAN.md)
 - Full feature inventory: [`FEATURE_LIST.md`](./FEATURE_LIST.md)
+- Security architecture: [`SECURITY_ARCHITECTURE.md`](./SECURITY_ARCHITECTURE.md)
+- Correction Memory: [`CORRECTION_MEMORY.md`](./CORRECTION_MEMORY.md)
 - Repo security ops: [`../../SECURITY_OPERATOR_CHECKLIST.md`](../../SECURITY_OPERATOR_CHECKLIST.md)
 
 ---

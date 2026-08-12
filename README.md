@@ -1,20 +1,33 @@
-# Alte' Budgeting
+# AuraHUD (Project Omnis)
 
-Mobile-first personal budgeting PWA (YNAB-inspired) with Supabase Auth/Postgres.
-PR quality gates from the governance stack stay in place.
+Private, voice-first **life HUD** powered by Life Aura. Alte’ Budgeting remains the money lens inside the same app.
+
+PR quality gates from the governance stack stay in place. Product plans: [`docs/aurahud/`](docs/aurahud/).
 
 | Piece | Path | Purpose |
 |-------|------|---------|
-| **Product app** | [`web/`](web/) | Alte' Budgeting (Next.js PWA) |
-| **DB migrations** | [`supabase/migrations/`](supabase/migrations/) | Schema + RLS |
+| **Product app** | [`web/`](web/) | AuraHUD + Alte’ Budget lens (Next.js PWA) |
+| **AuraHUD docs** | [`docs/aurahud/`](docs/aurahud/) | Demo plan, feature list, long-term plan, security |
+| **DB migrations** | [`supabase/migrations/`](supabase/migrations/) | Schema + RLS (budget + AuraHUD core) |
 | **PR governance** | [`governance/`](governance/) | Automated Steps 1–5 on every PR |
 | **Human review** | [`dashboard/`](dashboard/) | Approve / reject / merge findings |
 | **CI hygiene** | [`.github/workflows/`](.github/workflows/) | Gitleaks, audits, CodeQL, Semgrep, builds |
 
 > Operator steps for merge protection: [`SETUP_GOVERNANCE.md`](SETUP_GOVERNANCE.md)  
-> Security checklist: [`SECURITY_OPERATOR_CHECKLIST.md`](SECURITY_OPERATOR_CHECKLIST.md)
+> Security checklist: [`SECURITY_OPERATOR_CHECKLIST.md`](SECURITY_OPERATOR_CHECKLIST.md)  
+> AuraHUD security model: [`docs/aurahud/SECURITY_ARCHITECTURE.md`](docs/aurahud/SECURITY_ARCHITECTURE.md)
 
 ## Product
+
+### AuraHUD (new)
+
+- Today Stream HUD (Now / Next / Captured) with unified command bar
+- Local-first intent routing (Cloud AI **off by default**)
+- Correction Memory (✗ is never silently re-assumed)
+- Trust controls + AI receipts + public Privacy page
+- Spend-less nudge → Budget lens
+
+### Alte’ Budgeting (lens)
 
 - Multi-budget manager with role invite links (unlimited uses, Share on mobile)
 - Category auto-assign by percentage of Ready to Assign
@@ -29,7 +42,7 @@ PR quality gates from the governance stack stay in place.
 - Passkey (WebAuthn) or email/password sign-in (either works)
 - Installable PWA shell
 
-## Quickstart — Alte' Budgeting (cloud only)
+## Quickstart — AuraHUD / Alte' (cloud only)
 
 This app is meant to run on **Vercel**. Secrets live in **Doppler** and sync into Vercel — no local CLI, no `.env` files.
 

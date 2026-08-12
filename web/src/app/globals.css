@@ -8,70 +8,70 @@
  */
 :root {
   color-scheme: light;
-  --c-ink-950: 15 26 23;
-  --c-ink-900: 21 36 31;
-  --c-ink-800: 30 51 44;
-  --c-ink-700: 42 70 60;
-  --c-ink-600: 58 92 79;
-  --c-ink-500: 82 118 103;
-  --c-ink-400: 116 150 134;
-  --c-ink-300: 155 182 168;
-  --c-ink-200: 195 212 202;
-  --c-ink-100: 223 233 227;
-  --c-ink-50: 241 246 243;
+  /* AuraHUD — cool mist + slate ink + aurora teal (not cream/terracotta/purple) */
+  --c-ink-950: 11 18 32;
+  --c-ink-900: 18 28 48;
+  --c-ink-800: 30 44 72;
+  --c-ink-700: 45 64 96;
+  --c-ink-600: 64 88 124;
+  --c-ink-500: 90 116 152;
+  --c-ink-400: 122 146 178;
+  --c-ink-300: 158 178 202;
+  --c-ink-200: 194 208 224;
+  --c-ink-100: 222 230 240;
+  --c-ink-50: 240 244 250;
 
-  --c-moss-950: 16 40 29;
-  --c-moss-900: 22 54 39;
-  --c-moss-800: 28 70 50;
-  --c-moss-700: 42 96 70;
-  --c-moss-600: 52 106 78;
-  --c-moss-500: 63 122 92;
-  --c-moss-400: 90 154 117;
-  --c-moss-300: 143 191 163;
-  --c-moss-200: 186 216 197;
-  --c-moss-100: 214 233 221;
-  --c-moss-50: 236 245 240;
+  --c-moss-950: 12 48 44;
+  --c-moss-900: 18 72 66;
+  --c-moss-800: 24 96 88;
+  --c-moss-700: 32 124 112;
+  --c-moss-600: 36 145 132;
+  --c-moss-500: 42 157 143;
+  --c-moss-400: 64 180 166;
+  --c-moss-300: 110 204 192;
+  --c-moss-200: 168 226 218;
+  --c-moss-100: 208 240 234;
+  --c-moss-50: 232 248 244;
 
-  /* Card surfaces run near-white so they separate from the page wash. */
-  --c-sand-950: 60 51 38;
-  --c-sand-900: 92 79 60;
-  --c-sand-800: 124 108 84;
-  --c-sand-700: 152 134 108;
-  --c-sand-600: 184 165 137;
-  --c-sand-500: 209 192 166;
-  --c-sand-400: 223 209 186;
-  --c-sand-300: 233 223 205;
-  --c-sand-200: 232 224 208;
-  --c-sand-100: 243 237 226;
-  --c-sand-50: 254 253 250;
+  --c-sand-950: 36 44 58;
+  --c-sand-900: 58 70 90;
+  --c-sand-800: 88 104 128;
+  --c-sand-700: 120 136 160;
+  --c-sand-600: 150 166 188;
+  --c-sand-500: 178 192 210;
+  --c-sand-400: 200 212 226;
+  --c-sand-300: 216 224 234;
+  --c-sand-200: 228 234 242;
+  --c-sand-100: 238 242 248;
+  --c-sand-50: 252 253 255;
 
-  --c-coral-950: 68 27 15;
-  --c-coral-900: 94 38 21;
-  --c-coral-800: 122 52 29;
-  --c-coral-700: 156 68 40;
-  --c-coral-600: 178 79 47;
-  --c-coral-500: 196 92 58;
-  --c-coral-400: 217 120 85;
-  --c-coral-300: 231 160 132;
-  --c-coral-200: 240 195 176;
-  --c-coral-100: 247 222 211;
-  --c-coral-50: 252 240 234;
+  --c-coral-950: 64 40 12;
+  --c-coral-900: 96 58 16;
+  --c-coral-800: 128 78 22;
+  --c-coral-700: 168 108 28;
+  --c-coral-600: 196 140 40;
+  --c-coral-500: 214 164 58;
+  --c-coral-400: 233 196 106;
+  --c-coral-300: 240 214 148;
+  --c-coral-200: 245 228 186;
+  --c-coral-100: 250 240 214;
+  --c-coral-50: 253 248 236;
 
   --app-glow: radial-gradient(
       1200px 600px at 10% -10%,
-      rgba(63, 122, 92, 0.26),
+      rgba(42, 157, 143, 0.22),
       transparent 55%
     ),
-    radial-gradient(900px 500px at 100% 0%, rgba(196, 92, 58, 0.12), transparent 50%),
-    linear-gradient(165deg, #e9e3d6 0%, #dde8de 45%, #e6ddd0 100%);
-  --shadow-soft: 0 8px 24px rgba(15, 26, 23, 0.1);
-  --shadow-card: 0 1px 2px rgba(15, 26, 23, 0.06), 0 10px 24px rgba(15, 26, 23, 0.08);
-  --card-line: rgba(21, 36, 31, 0.14);
-  --page-bg: #e9e3d6;
-  --hero-bg: linear-gradient(150deg, #16261f 0%, #1d3a2c 100%);
-  --hero-line: rgba(247, 243, 235, 0.12);
-  --hero-alert-bg: linear-gradient(150deg, #96351c 0%, #b8502f 100%);
-  --hero-alert-line: rgba(247, 243, 235, 0.18);
+    radial-gradient(900px 500px at 100% 0%, rgba(233, 196, 106, 0.1), transparent 50%),
+    linear-gradient(165deg, #e8eef4 0%, #e2ebe9 45%, #e6eaf1 100%);
+  --shadow-soft: 0 8px 24px rgba(11, 18, 32, 0.1);
+  --shadow-card: 0 1px 2px rgba(11, 18, 32, 0.06), 0 10px 24px rgba(11, 18, 32, 0.08);
+  --card-line: rgba(18, 28, 48, 0.12);
+  --page-bg: #e8eef4;
+  --hero-bg: linear-gradient(150deg, #0b1220 0%, #14353a 100%);
+  --hero-line: rgba(232, 248, 244, 0.12);
+  --hero-alert-bg: linear-gradient(150deg, #6b3f10 0%, #a87420 100%);
+  --hero-alert-line: rgba(250, 240, 214, 0.18);
 }
 
 .dark {
@@ -129,19 +129,19 @@
 
   --app-glow: radial-gradient(
       1200px 600px at 10% -10%,
-      rgba(90, 154, 117, 0.16),
+      rgba(42, 157, 143, 0.14),
       transparent 55%
     ),
-    radial-gradient(900px 500px at 100% 0%, rgba(196, 92, 58, 0.09), transparent 50%),
-    linear-gradient(165deg, #080c0b 0%, #0b110f 45%, #0a0d0c 100%);
+    radial-gradient(900px 500px at 100% 0%, rgba(233, 196, 106, 0.08), transparent 50%),
+    linear-gradient(165deg, #0b1220 0%, #0e1628 45%, #0c1422 100%);
   --shadow-soft: 0 10px 30px rgba(0, 0, 0, 0.55);
   --shadow-card: 0 0 0 1px rgba(0, 0, 0, 0.5), 0 12px 28px rgba(0, 0, 0, 0.5);
-  --card-line: rgba(196, 214, 205, 0.28);
-  --page-bg: #080c0b;
-  --hero-bg: linear-gradient(150deg, #163024 0%, #1d4331 100%);
-  --hero-line: rgba(160, 205, 178, 0.45);
-  --hero-alert-bg: linear-gradient(150deg, #5d2314 0%, #8a3a20 100%);
-  --hero-alert-line: rgba(231, 160, 132, 0.5);
+  --card-line: rgba(194, 208, 224, 0.22);
+  --page-bg: #0b1220;
+  --hero-bg: linear-gradient(150deg, #14353a 0%, #1a4d48 100%);
+  --hero-line: rgba(168, 226, 218, 0.4);
+  --hero-alert-bg: linear-gradient(150deg, #5c3a10 0%, #8a5a18 100%);
+  --hero-alert-line: rgba(240, 214, 148, 0.45);
 }
 
 /*
@@ -154,15 +154,15 @@
     color-scheme: dark;
     --app-glow: radial-gradient(
         1200px 600px at 10% -10%,
-        rgba(90, 154, 117, 0.16),
+        rgba(42, 157, 143, 0.14),
         transparent 55%
       ),
-      radial-gradient(900px 500px at 100% 0%, rgba(196, 92, 58, 0.09), transparent 50%),
-      linear-gradient(165deg, #080c0b 0%, #0b110f 45%, #0a0d0c 100%);
-    --page-bg: #080c0b;
+      radial-gradient(900px 500px at 100% 0%, rgba(233, 196, 106, 0.08), transparent 50%),
+      linear-gradient(165deg, #0b1220 0%, #0e1628 45%, #0c1422 100%);
+    --page-bg: #0b1220;
     --shadow-soft: 0 10px 30px rgba(0, 0, 0, 0.55);
     --shadow-card: 0 0 0 1px rgba(0, 0, 0, 0.5), 0 12px 28px rgba(0, 0, 0, 0.5);
-    --card-line: rgba(196, 214, 205, 0.28);
+    --card-line: rgba(194, 208, 224, 0.22);
   }
 }
 
@@ -170,15 +170,15 @@
   color-scheme: light;
   --app-glow: radial-gradient(
       1200px 600px at 10% -10%,
-      rgba(63, 122, 92, 0.26),
+      rgba(42, 157, 143, 0.22),
       transparent 55%
     ),
-    radial-gradient(900px 500px at 100% 0%, rgba(196, 92, 58, 0.12), transparent 50%),
-    linear-gradient(165deg, #e9e3d6 0%, #dde8de 45%, #e6ddd0 100%);
-  --page-bg: #e9e3d6;
-  --shadow-soft: 0 8px 24px rgba(15, 26, 23, 0.1);
-  --shadow-card: 0 1px 2px rgba(15, 26, 23, 0.06), 0 10px 24px rgba(15, 26, 23, 0.08);
-  --card-line: rgba(21, 36, 31, 0.14);
+    radial-gradient(900px 500px at 100% 0%, rgba(233, 196, 106, 0.1), transparent 50%),
+    linear-gradient(165deg, #e8eef4 0%, #e2ebe9 45%, #e6eaf1 100%);
+  --page-bg: #e8eef4;
+  --shadow-soft: 0 8px 24px rgba(11, 18, 32, 0.1);
+  --shadow-card: 0 1px 2px rgba(11, 18, 32, 0.06), 0 10px 24px rgba(11, 18, 32, 0.08);
+  --card-line: rgba(18, 28, 48, 0.12);
 }
 
 html,
