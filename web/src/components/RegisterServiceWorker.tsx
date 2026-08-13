@@ -1,5 +1,6 @@
 "use client";
 
+import { publicBasePath, withBasePath } from "@/lib/base-path";
 import { useEffect } from "react";
 
 export function RegisterServiceWorker() {
@@ -10,8 +11,12 @@ export function RegisterServiceWorker() {
     // open (when a new SW skipWaiting + claims) re-opens a white WKWebView gap
     // for ~0.5s. New workers take effect on the next cold start / navigation.
 
+    const base = publicBasePath();
     void navigator.serviceWorker
-      .register("/sw.js", { scope: "/", updateViaCache: "none" })
+      .register(withBasePath("/sw.js"), {
+        scope: base ? `${base}/` : "/",
+        updateViaCache: "none",
+      })
       .then((registration) => {
         const requestSkipWaiting = () => {
           if (registration.waiting) {

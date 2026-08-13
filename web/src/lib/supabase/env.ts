@@ -5,7 +5,7 @@ export function getSupabaseEnv() {
   if (!url || !anonKey) {
     throw new Error(
       "Missing NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_ANON_KEY. " +
-        "Add them in the Doppler dashboard and sync Doppler → Vercel (see web/doppler.secrets.example).",
+        "Add them as GitHub Actions variables for Pages, or in Doppler if you still sync a Node host (see web/doppler.secrets.example).",
     );
   }
 

@@ -9,7 +9,7 @@ async function shareInvite(url: string, role: string) {
   if (typeof navigator !== "undefined" && typeof navigator.share === "function") {
     try {
       await navigator.share({
-        title: "Alte' Budgeting invite",
+        title: "AuraHUD invite",
         text: `Join my budget as ${role}`,
         url,
       });

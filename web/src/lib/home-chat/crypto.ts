@@ -28,6 +28,12 @@ function b64UrlToBytes(value: string): Uint8Array {
   return out;
 }
 
+function asBufferSource(bytes: Uint8Array): ArrayBuffer {
+  const copy = new Uint8Array(bytes.byteLength);
+  copy.set(bytes);
+  return copy.buffer as ArrayBuffer;
+}
+
 export async function generateHomeChatKeyPair(): Promise<HomeChatKeyPair> {
   const pair = await crypto.subtle.generateKey(CURVE, true, ["deriveBits"]);
   return { publicKey: pair.publicKey, privateKey: pair.privateKey };
@@ -43,7 +49,7 @@ export async function importPublicKeyB64(value: string): Promise<CryptoKey> {
   if (raw.byteLength !== 65) {
     throw new Error("Invalid Home Chat public key.");
   }
-  return crypto.subtle.importKey("raw", raw, CURVE, true, []);
+  return crypto.subtle.importKey("raw", asBufferSource(raw), CURVE, true, []);
 }
 
 export async function deriveSessionKey(
@@ -76,7 +82,11 @@ export async function encryptBytes(
 ): Promise<Uint8Array> {
   const iv = crypto.getRandomValues(new Uint8Array(GCM_IV_LENGTH));
   const cipher = new Uint8Array(
-    await crypto.subtle.encrypt({ name: "AES-GCM", iv }, sessionKey, plaintext),
+    await crypto.subtle.encrypt(
+      { name: "AES-GCM", iv },
+      sessionKey,
+      asBufferSource(plaintext),
+    ),
   );
   const out = new Uint8Array(1 + iv.byteLength + cipher.byteLength);
   out[0] = VERSION;
@@ -98,7 +108,11 @@ export async function decryptBytes(
   const iv = payload.slice(1, 1 + GCM_IV_LENGTH);
   const cipher = payload.slice(1 + GCM_IV_LENGTH);
   return new Uint8Array(
-    await crypto.subtle.decrypt({ name: "AES-GCM", iv }, sessionKey, cipher),
+    await crypto.subtle.decrypt(
+      { name: "AES-GCM", iv },
+      sessionKey,
+      asBufferSource(cipher),
+    ),
   );
 }
 

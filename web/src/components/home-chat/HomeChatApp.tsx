@@ -1,26 +1,55 @@
 "use client";
 
-import { useCallback } from "react";
+import { useCallback, useEffect, useRef, type RefObject } from "react";
 import { InAppCamera } from "@/components/home-chat/InAppCamera";
 import { OneTimePhotoViewer } from "@/components/home-chat/OneTimePhotoViewer";
 import { useHomeChat } from "@/components/home-chat/useHomeChat";
 import { isHomeChatCode, normalizeHomeChatCode } from "@/lib/home-chat/codes";
 
-const fieldClass =
-  "mt-1 min-h-12 w-full touch-manipulation rounded-xl border border-ink-900/10 bg-white px-3 py-3 text-base tracking-[0.18em] outline-none ring-moss-400 focus:ring-2";
-
 export function HomeChatApp({ displayName }: { displayName: string }) {
   const chat = useHomeChat(displayName);
+  const scrollerRef = useRef<HTMLUListElement>(null);
 
   const onScanFrame = useCallback(
     (video: HTMLVideoElement) => chat.scanFrame(video),
     [chat],
   );
 
+  useEffect(() => {
+    const node = scrollerRef.current;
+    if (!node) return;
+    node.scrollTop = node.scrollHeight;
+  }, [chat.thread.length]);
+
   return (
-    <div className="space-y-4">
+    <div className="flex min-h-0 flex-1 flex-col bg-app-glow">
+      <header className="flex items-center justify-between gap-3 border-b border-ink-900/10 px-4 pb-3 pt-[max(0.75rem,env(safe-area-inset-top))]">
+        <div className="min-w-0">
+          <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-moss-500">
+            Home Chat
+          </p>
+          <h1 className="truncate font-display text-xl font-bold text-ink-900">
+            {chat.phase === "chat" ? chat.peerName : "Nearby, encrypted"}
+          </h1>
+          <p className="truncate text-xs text-ink-600">
+            {chat.phase === "chat"
+              ? `One-time photos · ${chat.fingerprint ?? "encrypted link"}`
+              : "Texts and photos stay on these two phones"}
+          </p>
+        </div>
+        {chat.phase === "chat" || chat.phase === "hosting" || chat.phase === "connecting" ? (
+          <button
+            type="button"
+            onClick={() => void chat.hangUp()}
+            className="rounded-full bg-coral-500 px-3 py-2 text-xs font-bold text-sand-50"
+          >
+            {chat.phase === "chat" ? "End" : "Cancel"}
+          </button>
+        ) : null}
+      </header>
+
       {chat.error ? (
-        <div className="rounded-2xl border border-coral-500/35 bg-coral-400/10 px-4 py-3 text-sm text-ink-800">
+        <div className="mx-4 mt-3 rounded-2xl border border-coral-500/35 bg-coral-400/10 px-4 py-3 text-sm text-ink-800">
           {chat.error}
           <button
             type="button"
@@ -55,21 +84,18 @@ export function HomeChatApp({ displayName }: { displayName: string }) {
           qrUrl={chat.qrUrl}
           fingerprint={chat.fingerprint}
           bluetoothNote={chat.bluetoothNote}
-          onCancel={() => void chat.hangUp()}
         />
       ) : null}
 
       {chat.phase === "chat" ? (
         <ChatPanel
-          peerName={chat.peerName}
-          fingerprint={chat.fingerprint}
+          scrollerRef={scrollerRef}
           thread={chat.thread}
           draft={chat.draft}
           setDraft={chat.setDraft}
           onSend={() => void chat.sendText()}
           onPhoto={() => chat.setCameraMode("photo")}
           onOpenPhoto={(id) => void chat.openPhoto(id)}
-          onHangUp={() => void chat.hangUp()}
         />
       ) : null}
 
@@ -116,25 +142,24 @@ function IdlePanel({
 }) {
   const normalized = normalizeHomeChatCode(joinCode);
   return (
-    <>
+    <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-4 py-4">
       <div className="card-surface rounded-2xl p-4">
         <p className="text-sm text-ink-700">
-          Send texts and one-time photos to someone next to you. Pair in person,
-          then everything travels on an encrypted nearby link. Photos are taken
-          inside the app — they never go to the iPhone Photos library — and they
-          disappear after they’re opened.
+          Pair while you’re next to each other, then send texts and one-time
+          photos over an encrypted nearby link. The in-app camera never writes
+          to the iPhone Photos library. Opened photos are wiped.
         </p>
         <p className="mt-3 text-xs text-ink-600">
           {bluetoothSupported
             ? "This browser can use Bluetooth for pairing when a nearby Home Chat is advertising."
-            : "iPhone PWAs can’t use the Bluetooth radio (an Apple limit). Home Chat still works: pair with a QR or code, then chat over an encrypted link on the same Wi‑Fi."}
+            : "iPhone PWAs can’t use the Bluetooth radio. Scan the QR or type the code — chat still uses an encrypted link on the same Wi‑Fi."}
         </p>
       </div>
 
       <button
         type="button"
         onClick={onHost}
-        className="w-full rounded-2xl bg-ink-900 px-4 py-3.5 text-sm font-bold text-sand-50 hover:bg-ink-800"
+        className="w-full rounded-2xl bg-ink-900 px-4 py-4 text-sm font-bold text-sand-50 hover:bg-ink-800"
       >
         Start Home Chat
       </button>
@@ -161,8 +186,10 @@ function IdlePanel({
           Or type their 8-character code
           <input
             value={joinCode}
-            onChange={(event) => setJoinCode(normalizeHomeChatCode(event.target.value))}
-            className={fieldClass}
+            onChange={(event) =>
+              setJoinCode(normalizeHomeChatCode(event.target.value))
+            }
+            className="mt-1 min-h-12 w-full rounded-xl border border-ink-900/10 bg-white px-3 py-3 text-base tracking-[0.18em] outline-none ring-moss-400 focus:ring-2"
             autoCapitalize="characters"
             autoCorrect="off"
             spellCheck={false}
@@ -179,7 +206,7 @@ function IdlePanel({
           Join Home Chat
         </button>
       </div>
-    </>
+    </div>
   );
 }
 
@@ -189,17 +216,15 @@ function PairingPanel({
   qrUrl,
   fingerprint,
   bluetoothNote,
-  onCancel,
 }: {
   phase: "hosting" | "connecting";
   code: string;
   qrUrl: string | null;
   fingerprint: string | null;
   bluetoothNote: string | null;
-  onCancel: () => void;
 }) {
   return (
-    <div className="card-surface space-y-4 rounded-2xl p-4 text-center">
+    <div className="flex min-h-0 flex-1 flex-col items-center justify-center overflow-y-auto px-4 py-6 text-center">
       <p className="text-xs font-bold uppercase tracking-[0.2em] text-moss-500">
         {phase === "hosting" ? "Waiting nearby" : "Connecting"}
       </p>
@@ -208,137 +233,112 @@ function PairingPanel({
         <img
           src={qrUrl}
           alt="Home Chat pairing QR code"
-          className="mx-auto h-52 w-52 rounded-2xl bg-sand-50"
+          className="mt-4 h-56 w-56 rounded-3xl bg-sand-50 shadow-card"
         />
       ) : (
-        <div className="mx-auto h-52 w-52 animate-pulse rounded-2xl bg-sand-200/80" />
+        <div className="mt-4 h-56 w-56 animate-pulse rounded-3xl bg-sand-200/80" />
       )}
-      <p className="font-display text-3xl font-bold tracking-[0.22em] text-ink-900">
+      <p className="mt-4 font-display text-4xl font-bold tracking-[0.24em] text-ink-900">
         {code}
       </p>
-      <p className="text-sm text-ink-600">
-        Let the other person scan this or type the code. Stay on the same Wi‑Fi.
+      <p className="mt-2 max-w-xs text-sm text-ink-600">
+        Let them scan this or type the code. Stay on the same Wi‑Fi.
       </p>
       {fingerprint ? (
-        <p className="text-xs font-bold text-moss-700">
-          Match this code on both phones: {fingerprint}
+        <p className="mt-3 text-xs font-bold text-moss-700">
+          Match this on both phones: {fingerprint}
         </p>
       ) : null}
-      {bluetoothNote ? <p className="text-xs text-ink-600">{bluetoothNote}</p> : null}
-      <button
-        type="button"
-        onClick={onCancel}
-        className="rounded-xl px-4 py-2 text-sm font-bold text-ink-600 hover:bg-ink-900/5"
-      >
-        Cancel
-      </button>
+      {bluetoothNote ? (
+        <p className="mt-3 max-w-sm text-xs text-ink-600">{bluetoothNote}</p>
+      ) : null}
     </div>
   );
 }
 
 function ChatPanel({
-  peerName,
-  fingerprint,
+  scrollerRef,
   thread,
   draft,
   setDraft,
   onSend,
   onPhoto,
   onOpenPhoto,
-  onHangUp,
 }: {
-  peerName: string;
-  fingerprint: string | null;
+  scrollerRef: RefObject<HTMLUListElement | null>;
   thread: ReturnType<typeof useHomeChat>["thread"];
   draft: string;
   setDraft: (value: string) => void;
   onSend: () => void;
   onPhoto: () => void;
   onOpenPhoto: (id: string) => void;
-  onHangUp: () => void;
 }) {
   return (
-    <div className="flex min-h-[28rem] flex-col">
-      <div className="mb-3 flex items-start justify-between gap-3">
-        <div>
-          <p className="font-display text-lg font-bold text-ink-900">{peerName}</p>
-          <p className="text-xs text-moss-700">
-            Encrypted nearby link{fingerprint ? ` · ${fingerprint}` : ""}
-          </p>
-        </div>
+    <div className="flex min-h-0 flex-1 flex-col">
+      <ul
+        ref={scrollerRef}
+        className="flex-1 space-y-2 overflow-y-auto px-4 py-3"
+      >
+        {thread.length === 0 ? (
+          <li className="py-10 text-center text-sm text-ink-600">
+            Connected. Messages never leave these two phones.
+          </li>
+        ) : null}
+        {thread.map((item) => (
+          <li
+            key={item.id}
+            className={`max-w-[82%] rounded-2xl px-3 py-2 text-sm ${
+              item.from === "me"
+                ? "ml-auto bg-moss-500 text-sand-50"
+                : "bg-sand-100 text-ink-900"
+            }`}
+          >
+            {item.kind === "text" ? (
+              item.body
+            ) : item.state === "ready" ? (
+              <button
+                type="button"
+                onClick={() => onOpenPhoto(item.id)}
+                className="font-bold underline"
+              >
+                One-time photo · tap to view
+              </button>
+            ) : item.state === "sent" ? (
+              "One-time photo sent"
+            ) : (
+              "Photo viewed and removed"
+            )}
+          </li>
+        ))}
+      </ul>
+      <form
+        className="flex gap-2 border-t border-ink-900/10 bg-sand-50 px-3 py-2 pb-[max(0.5rem,env(safe-area-inset-bottom))]"
+        onSubmit={(event) => {
+          event.preventDefault();
+          onSend();
+        }}
+      >
         <button
           type="button"
-          onClick={onHangUp}
-          className="rounded-xl bg-coral-500 px-3 py-2 text-xs font-bold text-sand-50"
+          onClick={onPhoto}
+          className="rounded-xl bg-sand-100 px-3 py-3 text-sm font-bold text-ink-800"
         >
-          End
+          Photo
         </button>
-      </div>
-
-      <div className="card-surface flex min-h-0 flex-1 flex-col rounded-2xl">
-        <ul className="flex-1 space-y-2 overflow-y-auto p-3">
-          {thread.length === 0 ? (
-            <li className="py-8 text-center text-sm text-ink-600">
-              You’re connected. Messages and one-time photos stay on these two
-              phones.
-            </li>
-          ) : null}
-          {thread.map((item) => (
-            <li
-              key={item.id}
-              className={`max-w-[85%] rounded-2xl px-3 py-2 text-sm ${
-                item.from === "me"
-                  ? "ml-auto bg-moss-500 text-sand-50"
-                  : "bg-sand-100 text-ink-900"
-              }`}
-            >
-              {item.kind === "text" ? (
-                item.body
-              ) : item.state === "ready" ? (
-                <button
-                  type="button"
-                  onClick={() => onOpenPhoto(item.id)}
-                  className="font-bold underline"
-                >
-                  One-time photo · tap to view
-                </button>
-              ) : item.state === "sent" ? (
-                "One-time photo sent"
-              ) : (
-                "Photo viewed and removed"
-              )}
-            </li>
-          ))}
-        </ul>
-        <form
-          className="flex gap-2 border-t border-ink-900/10 p-2"
-          onSubmit={(event) => {
-            event.preventDefault();
-            onSend();
-          }}
+        <input
+          value={draft}
+          onChange={(event) => setDraft(event.target.value)}
+          className="min-h-12 min-w-0 flex-1 rounded-xl border border-ink-900/10 bg-white px-3 text-base outline-none ring-moss-400 focus:ring-2"
+          placeholder="Message"
+          maxLength={2000}
+        />
+        <button
+          type="submit"
+          className="rounded-xl bg-ink-900 px-4 py-3 text-sm font-bold text-sand-50"
         >
-          <button
-            type="button"
-            onClick={onPhoto}
-            className="rounded-xl bg-sand-100 px-3 py-2 text-sm font-bold text-ink-800"
-          >
-            Photo
-          </button>
-          <input
-            value={draft}
-            onChange={(event) => setDraft(event.target.value)}
-            className="min-h-11 min-w-0 flex-1 rounded-xl border border-ink-900/10 bg-white px-3 text-sm outline-none ring-moss-400 focus:ring-2"
-            placeholder="Message"
-            maxLength={2000}
-          />
-          <button
-            type="submit"
-            className="rounded-xl bg-ink-900 px-3 py-2 text-sm font-bold text-sand-50"
-          >
-            Send
-          </button>
-        </form>
-      </div>
+          Send
+        </button>
+      </form>
     </div>
   );
 }

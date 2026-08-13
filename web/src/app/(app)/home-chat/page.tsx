@@ -1,31 +1,25 @@
-import { AppShell } from "@/components/AppShell";
+"use client";
+
 import { HomeChatApp } from "@/components/home-chat/HomeChatApp";
-import { createClient } from "@/lib/supabase/server";
+import { createClient } from "@/lib/supabase/client";
+import { useEffect, useState } from "react";
 
-export const dynamic = "force-dynamic";
+export default function HomeChatPage() {
+  const [displayName, setDisplayName] = useState("You");
 
-export default async function HomeChatPage() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  useEffect(() => {
+    const supabase = createClient();
+    void supabase.auth.getUser().then(async ({ data }) => {
+      const userId = data.user?.id;
+      if (!userId) return;
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("display_name")
+        .eq("id", userId)
+        .maybeSingle();
+      setDisplayName(profile?.display_name?.trim() || "You");
+    });
+  }, []);
 
-  let displayName = "You";
-  if (user) {
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("display_name")
-      .eq("id", user.id)
-      .maybeSingle();
-    displayName = profile?.display_name?.trim() || "You";
-  }
-
-  return (
-    <AppShell
-      title="Home Chat"
-      subtitle="Nearby encrypted texts and one-time photos"
-    >
-      <HomeChatApp displayName={displayName} />
-    </AppShell>
-  );
+  return <HomeChatApp displayName={displayName} />;
 }

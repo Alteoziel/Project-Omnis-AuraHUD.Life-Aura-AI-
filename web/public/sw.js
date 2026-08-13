@@ -1,8 +1,21 @@
-/* Alte' Budgeting service worker — offline shell + last-visited pages. */
-const VERSION = "v10";
+/* AuraHUD service worker — offline shell + last-visited pages. */
+const VERSION = "v11";
 const STATIC_CACHE = `alte-static-${VERSION}`;
 const PAGE_CACHE = `alte-pages-${VERSION}`;
 const PRIVATE_CACHE_MAX_AGE_MS = 14 * 24 * 60 * 60 * 1000;
+const BASE_PATH = new URL("./", self.location.href).pathname.replace(/\/$/, "");
+
+function withBase(path) {
+  const normalized = path.startsWith("/") ? path : `/${path}`;
+  return BASE_PATH ? `${BASE_PATH}${normalized}` : normalized;
+}
+
+function stripBase(pathname) {
+  if (BASE_PATH && pathname.startsWith(BASE_PATH)) {
+    return pathname.slice(BASE_PATH.length) || "/";
+  }
+  return pathname;
+}
 
 const PRECACHE = [
   "/offline.html",
@@ -13,9 +26,12 @@ const PRECACHE = [
   "/icons/apple-touch-icon.png",
   "/icons/icon-192.svg",
   "/icons/icon-512.svg",
-];
+].map(withBase);
 
 const APP_SHELL_PATHS = [
+  "/hud",
+  "/home-chat",
+  "/trust",
   "/budget",
   "/accounts",
   "/insights",
@@ -109,18 +125,19 @@ function isSameOrigin(url) {
 }
 
 function isStaticAsset(url) {
+  const path = stripBase(url.pathname);
   return (
-    url.pathname.startsWith("/_next/static/") ||
-    url.pathname.startsWith("/icons/") ||
-    url.pathname.startsWith("/splash/") ||
-    url.pathname === "/sw.js" ||
-    url.pathname === "/offline.html" ||
-    url.pathname === "/boot.html"
+    path.startsWith("/_next/static/") ||
+    path.startsWith("/icons/") ||
+    path.startsWith("/splash/") ||
+    path === "/sw.js" ||
+    path === "/offline.html" ||
+    path === "/boot.html"
   );
 }
 
 function isManifest(url) {
-  return url.pathname === "/manifest.webmanifest";
+  return stripBase(url.pathname) === "/manifest.webmanifest";
 }
 
 function isNavigation(request) {
@@ -130,7 +147,7 @@ function isNavigation(request) {
 }
 
 function isOfflineSnapshot(url) {
-  return url.pathname === "/api/offline/snapshot";
+  return stripBase(url.pathname) === "/api/offline/snapshot";
 }
 
 function isBootFetch(request) {
@@ -167,9 +184,10 @@ async function freshCachedPage(cache, request) {
 async function putPageCache(cache, request, response) {
   const url = new URL(request.url);
   if (
-    !APP_SHELL_PATHS.some(
-      (path) => url.pathname === path || url.pathname.startsWith(`${path}/`),
-    )
+    !APP_SHELL_PATHS.some((path) => {
+      const current = stripBase(url.pathname);
+      return current === path || current.startsWith(`${path}/`);
+    })
   ) {
     return;
   }
@@ -196,7 +214,7 @@ async function putPageCache(cache, request, response) {
  * the default white background while the network is in flight (~0.5s).
  */
 async function darkBootNavigationResponse() {
-  const cached = await caches.match("/boot.html");
+  const cached = await caches.match(withBase("/boot.html"));
   if (cached) {
     return new Response(await cached.blob(), {
       status: 200,
@@ -208,7 +226,7 @@ async function darkBootNavigationResponse() {
     });
   }
   return new Response(
-    `<!doctype html><html lang="en" class="dark"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/><meta name="theme-color" content="#080c0b"/><meta name="color-scheme" content="dark"/><title>Alte' Budgeting</title><style>html,body{margin:0;min-height:100%;background:#080c0b;color-scheme:dark}</style></head><body style="background:#080c0b"></body></html>`,
+    `<!doctype html><html lang="en" class="dark"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/><meta name="theme-color" content="#080c0b"/><meta name="color-scheme" content="dark"/><title>AuraHUD</title><style>html,body{margin:0;min-height:100%;background:#080c0b;color-scheme:dark}</style></head><body style="background:#080c0b"></body></html>`,
     {
       status: 200,
       headers: {
@@ -227,7 +245,7 @@ async function darkBootNavigationResponse() {
  */
 async function staleWhileRevalidatePage(request) {
   const requestUrl = new URL(request.url);
-  if (requestUrl.pathname === "/login") {
+  if (stripBase(requestUrl.pathname) === "/login") {
     await purgePrivateData();
   }
   const cache = await caches.open(PAGE_CACHE);
@@ -255,7 +273,7 @@ async function staleWhileRevalidatePage(request) {
     if (network) return network;
     const bare = await freshCachedPage(cache, requestUrl.pathname);
     if (bare) return bare;
-    const offline = await caches.match("/offline.html");
+    const offline = await caches.match(withBase("/offline.html"));
     return (
       offline ||
       new Response("Offline", {
@@ -278,7 +296,7 @@ async function staleWhileRevalidatePage(request) {
   const bare = await freshCachedPage(cache, requestUrl.pathname);
   if (bare) return bare;
 
-  const offline = await caches.match("/offline.html");
+  const offline = await caches.match(withBase("/offline.html"));
   return (
     offline ||
     new Response("Offline", {
@@ -333,7 +351,7 @@ self.addEventListener("fetch", (event) => {
   if (!isSameOrigin(url)) return;
 
   // Never let the SW itself be stale forever.
-  if (url.pathname === "/sw.js") {
+  if (stripBase(url.pathname) === "/sw.js") {
     event.respondWith(fetch(request));
     return;
   }

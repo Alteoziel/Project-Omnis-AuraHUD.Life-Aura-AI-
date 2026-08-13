@@ -1,8 +1,9 @@
 "use client";
 
-import { useTransition } from "react";
-import { signOutAction } from "@/lib/actions";
+import { withBasePath } from "@/lib/base-path";
 import { purgePrivateOfflineData } from "@/lib/offline/db";
+import { createClient } from "@/lib/supabase/client";
+import { useTransition } from "react";
 
 export function SecureSignOutButton() {
   const [pending, startTransition] = useTransition();
@@ -16,7 +17,9 @@ export function SecureSignOutButton() {
           try {
             await purgePrivateOfflineData();
           } finally {
-            await signOutAction();
+            const supabase = createClient();
+            await supabase.auth.signOut();
+            window.location.assign(withBasePath("/login"));
           }
         });
       }}
