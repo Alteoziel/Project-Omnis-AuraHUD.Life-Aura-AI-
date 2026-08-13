@@ -61,6 +61,19 @@ function fromRow(row: StoredPhotoRow | undefined | null): StoredOneTimePhoto | n
   return { id: row.id, roomId: row.roomId, createdAt: row.createdAt, mime: row.mime, bytes };
 }
 
+/**
+ * Close an open one-time photo when the app actually leaves the foreground
+ * (app switcher, another app, lock). Do not use window blur — Control Center
+ * and the notification shade fire that on iPhone.
+ */
+export function shouldCloseOpenPhotoOnLeave(
+  eventType: string,
+  visibilityState: string,
+): boolean {
+  if (eventType === "pagehide") return true;
+  return eventType === "visibilitychange" && visibilityState === "hidden";
+}
+
 export async function saveOneTimePhoto(
   photo: StoredOneTimePhoto,
 ): Promise<void> {

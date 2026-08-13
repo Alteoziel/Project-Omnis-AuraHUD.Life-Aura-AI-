@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, type RefObject } from "react";
 import { ChatBubble } from "@/components/home-chat/ChatBubble";
 import { InAppCamera } from "@/components/home-chat/InAppCamera";
+import { LinkPathPanel } from "@/components/home-chat/LinkPathPanel";
 import { OneTimePhotoViewer } from "@/components/home-chat/OneTimePhotoViewer";
 import { useHomeChat } from "@/components/home-chat/useHomeChat";
 import { isHomeChatCode, normalizeHomeChatCode } from "@/lib/home-chat/codes";
@@ -98,6 +99,9 @@ export function HomeChatApp({ displayName }: { displayName: string }) {
           onPhoto={() => chat.setCameraMode("photo")}
           onOpenPhoto={(id) => void chat.openPhoto(id)}
           onReact={(id, emoji) => void chat.sendReaction(id, emoji)}
+          linkReport={chat.linkReport}
+          screenWatch={chat.screenWatch}
+          fingerprint={chat.fingerprint}
         />
       ) : null}
 
@@ -267,6 +271,9 @@ function ChatPanel({
   onPhoto,
   onOpenPhoto,
   onReact,
+  linkReport,
+  screenWatch,
+  fingerprint,
 }: {
   scrollerRef: RefObject<HTMLUListElement | null>;
   thread: ReturnType<typeof useHomeChat>["thread"];
@@ -276,9 +283,17 @@ function ChatPanel({
   onPhoto: () => void;
   onOpenPhoto: (id: string) => void;
   onReact: (id: string, emoji: string) => void;
+  linkReport: ReturnType<typeof useHomeChat>["linkReport"];
+  screenWatch: ReturnType<typeof useHomeChat>["screenWatch"];
+  fingerprint: string | null;
 }) {
   return (
     <div className="flex min-h-0 flex-1 flex-col">
+      <LinkPathPanel
+        report={linkReport}
+        screenWatch={screenWatch}
+        fingerprint={fingerprint}
+      />
       <ul
         ref={scrollerRef}
         className="flex-1 space-y-2 overflow-y-auto px-4 py-3"

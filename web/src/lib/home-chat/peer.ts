@@ -1,4 +1,5 @@
 import { bytesToArrayBuffer } from "@/lib/home-chat/crypto";
+import { buildLinkReport } from "@/lib/home-chat/link-report";
 import {
   describeHomeChatError,
   isHomeChatQuotaError,
@@ -52,6 +53,22 @@ export class HomeChatPeer {
 
   get connected(): boolean {
     return this.channel?.readyState === "open";
+  }
+
+  async inspectLink() {
+    const pc = this.pc;
+    const stats = pc ? [...(await pc.getStats()).values()] : [];
+    const mediaTrackCount = pc
+      ? [...pc.getSenders(), ...pc.getReceivers()].filter((item) => item.track).length
+      : 0;
+    const dataChannelCount = stats.filter((row) => row.type === "data-channel").length ||
+      (this.channel ? 1 : 0);
+    return buildLinkReport({
+      stats,
+      channelState: this.channel?.readyState ?? null,
+      dataChannelCount,
+      mediaTrackCount,
+    });
   }
 
   async start(): Promise<void> {

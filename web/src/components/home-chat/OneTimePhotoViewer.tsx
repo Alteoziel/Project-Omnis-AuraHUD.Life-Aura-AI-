@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { shouldCloseOpenPhotoOnLeave } from "@/lib/home-chat/store";
 
 export function OneTimePhotoViewer({
   bytes,
@@ -29,12 +30,25 @@ export function OneTimePhotoViewer({
     image.src = url;
     return () => {
       URL.revokeObjectURL(url);
-      const ctx = canvas.getContext("2d");
-      if (ctx) ctx.clearRect(0, 0, canvas.width, canvas.height);
-      canvas.width = 0;
-      canvas.height = 0;
+      blankCanvas(canvas);
     };
   }, [bytes]);
+
+  useEffect(() => {
+    const leave = (event: Event) => {
+      if (!shouldCloseOpenPhotoOnLeave(event.type, document.visibilityState)) {
+        return;
+      }
+      blankCanvas(canvasRef.current);
+      onClose();
+    };
+    document.addEventListener("visibilitychange", leave);
+    window.addEventListener("pagehide", leave);
+    return () => {
+      document.removeEventListener("visibilitychange", leave);
+      window.removeEventListener("pagehide", leave);
+    };
+  }, [onClose]);
 
   return (
     <div
@@ -43,7 +57,7 @@ export function OneTimePhotoViewer({
     >
       <div className="flex items-center justify-between p-4 pt-[max(1rem,env(safe-area-inset-top))]">
         <p className="text-xs font-bold uppercase tracking-[0.16em] text-coral-300">
-          One-time photo · closes and deletes
+          One-time photo · leaves with you
         </p>
         <button
           type="button"
@@ -62,4 +76,16 @@ export function OneTimePhotoViewer({
       </div>
     </div>
   );
+}
+
+function blankCanvas(canvas: HTMLCanvasElement | null) {
+  if (!canvas) return;
+  const ctx = canvas.getContext("2d");
+  if (ctx) {
+    ctx.fillStyle = "#000";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+  }
+  canvas.width = 0;
+  canvas.height = 0;
 }

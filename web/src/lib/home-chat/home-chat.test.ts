@@ -27,10 +27,18 @@ import {
   splitPhotoChunks,
 } from "@/lib/home-chat/protocol";
 import {
+  buildLinkReport,
+  describeScreenWatch,
+  maskEndpoint,
+  pathKindFromCandidates,
+  pathLabelFor,
+} from "@/lib/home-chat/link-report";
+import {
   firstGrapheme,
   normalizeReactionEmoji,
   upsertReaction,
 } from "@/lib/home-chat/reactions";
+import { shouldCloseOpenPhotoOnLeave } from "@/lib/home-chat/store";
 
 async function main() {
   const fixed = new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8]);
@@ -114,6 +122,109 @@ async function main() {
   });
   assert.equal(isHomeChatQuotaError(quota), true);
   assert.match(describeHomeChatError(quota, "fallback"), /too busy for that photo/);
+
+  assert.equal(maskEndpoint("192.168.1.24"), "192.168.×.×");
+  assert.equal(maskEndpoint("2001:db8::1"), "IPv6 on this network");
+  assert.equal(pathKindFromCandidates("host", "host"), "direct");
+  assert.equal(pathKindFromCandidates("host", "srflx"), "stun");
+  assert.equal(pathKindFromCandidates("relay", "host"), "relay");
+  assert.equal(pathLabelFor("direct"), "Direct · same Wi-Fi");
+
+  const direct = buildLinkReport({
+    stats: [
+      {
+        id: "T",
+        type: "transport",
+        selectedCandidatePairId: "P",
+        dtlsState: "connected",
+        iceState: "connected",
+      },
+      {
+        id: "P",
+        type: "candidate-pair",
+        localCandidateId: "L",
+        remoteCandidateId: "R",
+        nominated: true,
+        state: "succeeded",
+      },
+      { id: "L", type: "local-candidate", candidateType: "host", address: "192.168.0.4" },
+      { id: "R", type: "remote-candidate", candidateType: "host", address: "192.168.0.8" },
+      { id: "C", type: "data-channel", messagesSent: 4, messagesReceived: 3 },
+    ],
+    channelState: "open",
+    dataChannelCount: 1,
+    mediaTrackCount: 0,
+  });
+  assert.equal(direct.pathKind, "direct");
+  assert.equal(direct.localAddress, "192.168.×.×");
+  assert.equal(direct.warning, null);
+  assert.equal(direct.hops.some((hop) => hop.id === "server" && hop.tone === "muted"), true);
+
+  const relayed = buildLinkReport({
+    stats: [
+      {
+        id: "T",
+        type: "transport",
+        selectedCandidatePairId: "P",
+        dtlsState: "connected",
+        iceState: "connected",
+      },
+      {
+        id: "P",
+        type: "candidate-pair",
+        localCandidateId: "L",
+        remoteCandidateId: "R",
+        nominated: true,
+      },
+      { id: "L", type: "local-candidate", candidateType: "host", address: "10.0.0.2" },
+      { id: "R", type: "remote-candidate", candidateType: "relay", address: "203.0.113.9" },
+    ],
+    channelState: "open",
+    dataChannelCount: 1,
+    mediaTrackCount: 0,
+  });
+  assert.equal(relayed.pathKind, "relay");
+  assert.match(relayed.warning ?? "", /relay/);
+
+  const extraChannel = buildLinkReport({
+    stats: [],
+    channelState: "open",
+    dataChannelCount: 2,
+    mediaTrackCount: 0,
+  });
+  assert.match(extraChannel.warning ?? "", /data channel/);
+
+  const media = buildLinkReport({
+    stats: [],
+    channelState: "open",
+    dataChannelCount: 1,
+    mediaTrackCount: 1,
+  });
+  assert.match(media.warning ?? "", /media track/);
+
+  const crowded = buildLinkReport({
+    stats: [
+      { type: "remote-candidate", address: "192.168.1.2" },
+      { type: "remote-candidate", address: "192.168.1.3" },
+      { type: "remote-candidate", address: "192.168.1.4" },
+    ],
+    channelState: "open",
+    dataChannelCount: 1,
+    mediaTrackCount: 0,
+  });
+  assert.equal(crowded.extraRemoteAddresses, false);
+  assert.equal(crowded.warning, null);
+
+  const front = describeScreenWatch({ visible: true, focused: true });
+  assert.equal(front.inFront, true);
+  assert.match(front.detail, /cannot tell if someone is watching the glass/);
+  const hidden = describeScreenWatch({ visible: false, focused: true });
+  assert.equal(hidden.inFront, false);
+
+  assert.equal(shouldCloseOpenPhotoOnLeave("visibilitychange", "hidden"), true);
+  assert.equal(shouldCloseOpenPhotoOnLeave("visibilitychange", "visible"), false);
+  assert.equal(shouldCloseOpenPhotoOnLeave("pagehide", "visible"), true);
+  assert.equal(shouldCloseOpenPhotoOnLeave("blur", "visible"), false);
 
   console.log("home-chat.test.ts: ok");
 }

@@ -24,6 +24,7 @@ import {
   type HomeChatKeyPair,
 } from "@/lib/home-chat/crypto";
 import { encodeHomeChatInvite, parseHomeChatInvite } from "@/lib/home-chat/invite";
+import { describeScreenWatch, type LinkReport } from "@/lib/home-chat/link-report";
 import { HomeChatPeer } from "@/lib/home-chat/peer";
 import {
   assemblePhotoChunks,
@@ -92,6 +93,9 @@ export function useHomeChat(displayName: string) {
     bytes: Uint8Array;
   } | null>(null);
   const [bluetoothNote, setBluetoothNote] = useState<string | null>(null);
+  const [linkReport, setLinkReport] = useState<LinkReport | null>(null);
+  const [screenFront, setScreenFront] = useState(true);
+  const [windowFocused, setWindowFocused] = useState(true);
   const bluetooth = getBluetoothCapability();
 
   const keysRef = useRef<HomeChatKeyPair | null>(null);
@@ -105,6 +109,10 @@ export function useHomeChat(displayName: string) {
   const stopAdvertiseRef = useRef<(() => void) | null>(null);
   const guestWaitRef = useRef<number | null>(null);
   const hangingUpRef = useRef(false);
+  const viewingPhotoRef = useRef<{
+    id: string;
+    bytes: Uint8Array;
+  } | null>(null);
 
   const resetError = useCallback(() => setError(null), []);
 
@@ -132,6 +140,9 @@ export function useHomeChat(displayName: string) {
     sessionKeyRef.current = null;
     assemblersRef.current.clear();
     pendingRef.current = [];
+    const viewing = viewingPhotoRef.current;
+    viewingPhotoRef.current = null;
+    if (viewing) wipeBytes(viewing.bytes);
     setThread([]);
     setDraft("");
     setQrUrl(null);
@@ -141,7 +152,41 @@ export function useHomeChat(displayName: string) {
     setCameraMode(null);
     setViewingPhoto(null);
     setBluetoothNote(null);
+    setLinkReport(null);
   }, []);
+
+  useEffect(() => {
+    const vis = () => setScreenFront(document.visibilityState === "visible");
+    const onFocus = () => setWindowFocused(true);
+    const onBlur = () => setWindowFocused(false);
+    document.addEventListener("visibilitychange", vis);
+    window.addEventListener("focus", onFocus);
+    window.addEventListener("blur", onBlur);
+    return () => {
+      document.removeEventListener("visibilitychange", vis);
+      window.removeEventListener("focus", onFocus);
+      window.removeEventListener("blur", onBlur);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (phase !== "chat") return;
+    let cancelled = false;
+    const tick = async () => {
+      try {
+        const report = await peerRef.current?.inspectLink();
+        if (!cancelled && report) setLinkReport(report);
+      } catch {
+        // Keep the last readable path; getStats must never stall the chat.
+      }
+    };
+    void tick();
+    const id = window.setInterval(() => void tick(), 2000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(id);
+    };
+  }, [phase]);
 
   useEffect(() => {
     void closeLeftoverHomeChatRoom();
@@ -517,11 +562,13 @@ export function useHomeChat(displayName: string) {
       );
       return;
     }
+    viewingPhotoRef.current = { id, bytes };
     setViewingPhoto({ id, bytes });
   }, []);
 
   const closePhoto = useCallback(async () => {
-    const current = viewingPhoto;
+    const current = viewingPhotoRef.current;
+    viewingPhotoRef.current = null;
     setViewingPhoto(null);
     if (!current) return;
     wipeBytes(current.bytes);
@@ -537,7 +584,7 @@ export function useHomeChat(displayName: string) {
     } catch {
       // Link may already be gone; the photo is still wiped locally.
     }
-  }, [sendControl, viewingPhoto]);
+  }, [sendControl]);
 
   const scanFrame = useCallback(
     async (video: HTMLVideoElement) => {
@@ -618,5 +665,10 @@ export function useHomeChat(displayName: string) {
     joinWithInvite,
     joinFromBluetooth,
     fail: (message: string) => setError(message),
+    linkReport,
+    screenWatch: describeScreenWatch({
+      visible: screenFront,
+      focused: windowFocused,
+    }),
   };
 }
