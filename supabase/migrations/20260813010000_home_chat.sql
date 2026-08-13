@@ -290,15 +290,47 @@ revoke all on function public.can_access_home_chat_realtime_topic(text)
 grant execute on function public.can_access_home_chat_realtime_topic(text)
   to authenticated, service_role;
 
+-- Home Chat + budget-live broadcast auth. Do not statically call
+-- can_access_budget_realtime_topic(): that helper only exists after the
+-- older Alte’ security migration, so AuraHUD-only projects would fail
+-- CREATE FUNCTION (SQL functions are bound at create time).
 create or replace function public.can_access_private_realtime_topic(p_topic text)
 returns boolean
-language sql
+language plpgsql
 stable
 security definer
 set search_path = ''
 as $$
-  select public.can_access_budget_realtime_topic(p_topic)
-      or public.can_access_home_chat_realtime_topic(p_topic);
+declare
+  allowed boolean := false;
+begin
+  if public.can_access_home_chat_realtime_topic(p_topic) then
+    return true;
+  end if;
+
+  if to_regprocedure('public.can_access_budget_realtime_topic(text)') is not null then
+    execute 'select public.can_access_budget_realtime_topic($1)'
+      into allowed
+      using p_topic;
+    return coalesce(allowed, false);
+  end if;
+
+  if to_regclass('public.budget_members') is null then
+    return false;
+  end if;
+
+  execute
+    'select exists (
+       select 1
+       from public.budget_members m
+       where m.user_id = auth.uid()
+         and $1 = ''budget-live:'' || m.budget_id::text
+     )'
+    into allowed
+    using p_topic;
+
+  return coalesce(allowed, false);
+end;
 $$;
 
 revoke all on function public.can_access_private_realtime_topic(text)
@@ -306,26 +338,36 @@ revoke all on function public.can_access_private_realtime_topic(text)
 grant execute on function public.can_access_private_realtime_topic(text)
   to authenticated, service_role;
 
-drop policy if exists "budget members read private realtime"
-  on realtime.messages;
-create policy "budget members read private realtime"
-on realtime.messages for select
-to authenticated
-using (
-  realtime.messages.extension in ('broadcast', 'presence')
-  and public.can_access_private_realtime_topic(
-    (select realtime.topic())
-  )
-);
+do $$
+begin
+  if to_regclass('realtime.messages') is null then
+    raise notice 'Skipping Home Chat realtime policies: realtime.messages is not available.';
+    return;
+  end if;
 
-drop policy if exists "budget members write private realtime"
-  on realtime.messages;
-create policy "budget members write private realtime"
-on realtime.messages for insert
-to authenticated
-with check (
-  realtime.messages.extension in ('broadcast', 'presence')
-  and public.can_access_private_realtime_topic(
-    (select realtime.topic())
-  )
-);
+  execute 'drop policy if exists "budget members read private realtime" on realtime.messages';
+  execute $policy$
+    create policy "budget members read private realtime"
+    on realtime.messages for select
+    to authenticated
+    using (
+      realtime.messages.extension in ('broadcast', 'presence')
+      and public.can_access_private_realtime_topic(
+        (select realtime.topic())
+      )
+    )
+  $policy$;
+
+  execute 'drop policy if exists "budget members write private realtime" on realtime.messages';
+  execute $policy$
+    create policy "budget members write private realtime"
+    on realtime.messages for insert
+    to authenticated
+    with check (
+      realtime.messages.extension in ('broadcast', 'presence')
+      and public.can_access_private_realtime_topic(
+        (select realtime.topic())
+      )
+    )
+  $policy$;
+end $$;
