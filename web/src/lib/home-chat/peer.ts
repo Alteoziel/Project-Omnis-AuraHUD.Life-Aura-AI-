@@ -59,10 +59,7 @@ export class HomeChatPeer {
     const pc = this.pc;
     const stats = pc ? [...(await pc.getStats()).values()] : [];
     const mediaTrackCount = pc
-      ? pc
-          .getSenders()
-          .concat(pc.getReceivers())
-          .filter((item) => item.track).length
+      ? [...pc.getSenders(), ...pc.getReceivers()].filter((item) => item.track).length
       : 0;
     const dataChannelCount = stats.filter((row) => row.type === "data-channel").length ||
       (this.channel ? 1 : 0);
