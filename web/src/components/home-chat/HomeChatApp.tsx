@@ -50,7 +50,7 @@ export function HomeChatApp({ displayName }: { displayName: string }) {
       </header>
 
       {chat.error ? (
-        <div className="mx-4 mt-3 rounded-2xl border border-coral-500/35 bg-coral-400/10 px-4 py-3 text-sm text-ink-800">
+        <div className="fixed inset-x-0 top-[max(0.75rem,env(safe-area-inset-top))] z-[100] mx-4 rounded-2xl border border-coral-500/35 bg-sand-50 px-4 py-3 text-sm text-ink-800 shadow-soft">
           {chat.error}
           <button
             type="button"

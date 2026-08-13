@@ -1,8 +1,8 @@
 import { bytesToArrayBuffer, wipeBytes } from "@/lib/home-chat/crypto";
 import { MAX_PHOTO_BYTES } from "@/lib/home-chat/protocol";
 
-const MAX_EDGE = 960;
-const JPEG_QUALITY = 0.64;
+const MAX_EDGE = 720;
+const JPEG_QUALITY = 0.55;
 
 export async function blobToBytes(blob: Blob): Promise<Uint8Array> {
   return new Uint8Array(await blob.arrayBuffer());

@@ -109,10 +109,9 @@ export class HomeChatPeer {
     const max = Math.min(advertised, MAX_DATA_CHANNEL_BYTES);
     const payload =
       typeof data === "string" ? data : bytesToArrayBuffer(data);
+    // Safari counts data-channel strings as UTF-16 (2 bytes per char).
     const size =
-      typeof payload === "string"
-        ? new TextEncoder().encode(payload).byteLength
-        : payload.byteLength;
+      typeof payload === "string" ? payload.length * 2 : payload.byteLength;
     if (size > max) {
       throw new Error("That photo is too large for this nearby link.");
     }
@@ -181,12 +180,24 @@ export class HomeChatPeer {
     channel.binaryType = "arraybuffer";
     channel.bufferedAmountLowThreshold = SEND_LOW_WATER;
     channel.addEventListener("message", (event) => {
-      const payload = decodeChannelData(event.data);
-      if (payload) this.handlers.onMessage(payload);
+      void this.dispatchMessage(event.data);
     });
     channel.addEventListener("open", () => {
       this.handlers.onState("channel-open");
     });
+  }
+
+  private async dispatchMessage(data: unknown): Promise<void> {
+    // iPhone Safari often delivers binary data-channel messages as Blob even
+    // when binaryType is "arraybuffer". Dropping those looks like "sent, never
+    // received."
+    if (typeof Blob !== "undefined" && data instanceof Blob) {
+      const bytes = new Uint8Array(await data.arrayBuffer());
+      this.handlers.onMessage(bytes);
+      return;
+    }
+    const payload = decodeChannelData(data);
+    if (payload) this.handlers.onMessage(payload);
   }
 
   private waitUntilBuffered(maxAmount: number): Promise<void> {
