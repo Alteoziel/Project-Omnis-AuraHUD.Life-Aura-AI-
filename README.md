@@ -51,7 +51,10 @@ This app is meant to run on **GitHub Pages** as a static PWA. The browser talks 
 1. Create a Supabase project
 2. Run **all** SQL files in [`supabase/migrations/`](supabase/migrations/) in order in the SQL editor (including multi-budget, Plaid, AuraHUD core, and Home Chat migrations). Skipping these causes logged-in pages to fail. Home Chat (`20260813010000_home_chat.sql`) is safe to re-run after a partial apply: it no longer requires `can_access_budget_realtime_topic` (that helper only exists if the older Alte’ budget migrations were applied).
 3. Enable Email auth (password) under Authentication → Providers
-4. Enable **Passkeys** under Authentication → Passkeys (beta). Set Relying Party display name to `AuraHUD`, RP ID to your Pages host (e.g. `alteoziel.github.io`), and origins to your HTTPS Pages URL (plus `http://localhost:3000` for local). Also allow `/auth/callback/` redirects under Authentication → URL Configuration. Set **Site URL** to the Pages origin (include the repo path if this is a project site).
+4. Enable **Passkeys** under Authentication → Passkeys (beta). Set Relying Party display name to `AuraHUD`, RP ID to your Pages host (e.g. `alteoziel.github.io`), and origins to your HTTPS Pages URL (plus `http://localhost:3000` for local). Under Authentication → URL Configuration set **Site URL** to the Pages origin (include the repo path if this is a project site), and add these **Redirect URLs** (trailing slashes matter on Pages):
+   - `https://<user>.github.io/<repo>/`
+   - `https://<user>.github.io/<repo>/auth/callback/`
+   - `http://localhost:3000/auth/callback` (local)
 
 ### 2. GitHub Actions variables
 

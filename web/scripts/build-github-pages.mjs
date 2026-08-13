@@ -160,7 +160,12 @@ function writeSpaFallback(basePath) {
           inviteQuery.set("token", inv[1]);
           return go("/invite/", "?" + inviteQuery.toString());
         }
+        if (search.indexOf("code=") >= 0 || search.indexOf("token_hash=") >= 0) {
+          return go("/auth/callback/", search);
+        }
         if (/^\\/auth\\/callback\\/?$/.test(rel)) return go("/auth/callback/", search);
+        if (/^\\/login\\/?$/.test(rel)) return go("/login/", search);
+        if (/^\\/hud\\/?$/.test(rel)) return go("/hud/", search);
         go("/");
       })();
     </script>
