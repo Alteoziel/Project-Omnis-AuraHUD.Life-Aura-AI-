@@ -15,6 +15,7 @@ import {
   importPublicKeyB64,
   pairingFingerprint,
   wipeBytes,
+  bytesToB64Url,
 } from "@/lib/home-chat/crypto";
 import { encodeHomeChatInvite, parseHomeChatInvite } from "@/lib/home-chat/invite";
 import {
@@ -77,10 +78,10 @@ async function main() {
   const chunks = splitPhotoChunks("photo-1", photoSealed);
   assert.ok(chunks.length >= 2);
   for (const frame of chunks) {
-    const wire = await encryptText(aliceKey, frame);
+    const wire = bytesToB64Url(await encryptText(aliceKey, frame));
     assert.ok(
-      wire.byteLength < 8_000,
-      "encrypted photo frame must fit an iPhone data channel",
+      wire.length * 2 < 12_000,
+      "base64 photo frame must fit Safari's UTF-16 data-channel cap",
     );
   }
   const byIndex = new Map<number, Uint8Array>();

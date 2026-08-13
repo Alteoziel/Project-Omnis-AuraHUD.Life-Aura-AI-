@@ -112,6 +112,8 @@ export function ChatBubble({
           </button>
         ) : item.state === "sent" ? (
           "One-time photo sent"
+        ) : item.state === "receiving" ? (
+          "Receiving photo…"
         ) : (
           "Photo viewed and removed"
         )}

@@ -1,5 +1,5 @@
 /* AuraHUD service worker — offline shell + last-visited pages. */
-const VERSION = "v13";
+const VERSION = "v14";
 const STATIC_CACHE = `alte-static-${VERSION}`;
 const PAGE_CACHE = `alte-pages-${VERSION}`;
 const PRIVATE_CACHE_MAX_AGE_MS = 14 * 24 * 60 * 60 * 1000;
@@ -70,9 +70,6 @@ self.addEventListener("install", (event) => {
 self.addEventListener("activate", (event) => {
   event.waitUntil(
     (async () => {
-      // Keep last-visited HTML across SW bumps so cold open stays a cache hit.
-      await migratePageCacheForward();
-
       const keys = await caches.keys();
       await Promise.all(
         keys
@@ -97,27 +94,6 @@ self.addEventListener("message", (event) => {
     event.waitUntil(purgePrivateData());
   }
 });
-
-async function migratePageCacheForward() {
-  const keys = await caches.keys();
-  const oldPageCaches = keys
-    .filter((key) => key.startsWith("alte-pages-") && key !== PAGE_CACHE)
-    .sort();
-  if (oldPageCaches.length === 0) return;
-
-  const next = await caches.open(PAGE_CACHE);
-  for (const oldKey of oldPageCaches) {
-    const prev = await caches.open(oldKey);
-    const requests = await prev.keys();
-    await Promise.all(
-      requests.map(async (request) => {
-        if (await next.match(request)) return;
-        const response = await prev.match(request);
-        if (response) await next.put(request, response);
-      }),
-    );
-  }
-}
 
 async function purgePrivateData() {
   const keys = await caches.keys();
