@@ -19,6 +19,18 @@ async function main() {
     .find((part) => part.startsWith("style-src "));
   assert.equal(prodStyle, "style-src 'self' 'unsafe-inline'");
 
+  const prodConnect = prod
+    .split("; ")
+    .find((part) => part.startsWith("connect-src "));
+  assert.ok(prodConnect, "expected connect-src directive");
+  assert.match(prodConnect, /stun:stun\.cloudflare\.com:3478/);
+  assert.match(prodConnect, /stun:stun\.l\.google\.com:19302/);
+
+  const prodMedia = prod
+    .split("; ")
+    .find((part) => part.startsWith("media-src "));
+  assert.equal(prodMedia, "media-src 'self' blob: mediastream:");
+
   const dev = buildContentSecurityPolicy("devnonce", { isDev: true });
   const devScript = dev
     .split("; ")

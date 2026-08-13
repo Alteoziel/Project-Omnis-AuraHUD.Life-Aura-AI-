@@ -9,7 +9,7 @@ export default function AppError({
 }) {
   const message = error.message || "Something went wrong.";
   const looksLikeSchema =
-    /relation|column|budget_members|budget_id|does not exist|permission denied/i.test(
+    /relation|column|budget_members|budget_id|home_chat_rooms|does not exist|permission denied/i.test(
       message,
     );
   const looksLikeBankSync =
@@ -31,8 +31,8 @@ export default function AppError({
           This usually means the latest Supabase migrations haven’t been applied yet.
           In the Supabase SQL editor, run the files in{" "}
           <code className="font-mono text-xs">supabase/migrations/</code> in order
-          (especially <code className="font-mono text-xs">20260724120000_*</code> and{" "}
-          <code className="font-mono text-xs">20260724140000_*</code>).
+          (especially <code className="font-mono text-xs">20260812000000_*</code> and{" "}
+          <code className="font-mono text-xs">20260813010000_*</code>).
         </p>
       ) : null}
       {looksLikeBankSync ? (

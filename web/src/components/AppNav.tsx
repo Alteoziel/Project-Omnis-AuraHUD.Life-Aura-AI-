@@ -4,15 +4,16 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const links = [
-  { href: "/hud", label: "HUD" },
-  { href: "/budget", label: "Budget" },
-  { href: "/accounts", label: "Accounts" },
-  { href: "/trust", label: "Trust" },
-  { href: "/settings", label: "Settings" },
+  { href: "/hud", label: "HUD", short: "HUD" },
+  { href: "/home-chat", label: "Home Chat", short: "Chat" },
+  { href: "/budget", label: "Budget", short: "Budget" },
+  { href: "/accounts", label: "Accounts", short: "Accounts" },
+  { href: "/trust", label: "Trust", short: "Trust" },
+  { href: "/settings", label: "Settings", short: "Settings" },
 ];
 
 function navClass(active: boolean) {
-  return `touch-manipulation flex items-center justify-center rounded-xl px-2 py-2.5 text-xs font-bold transition sm:text-sm ${
+  return `touch-manipulation flex items-center justify-center rounded-xl px-1 py-2.5 text-[10px] font-bold transition sm:px-2 sm:text-xs ${
     active ? "bg-moss-500 text-sand-50" : "text-ink-700 hover:bg-sand-100 active:bg-sand-200"
   }`;
 }
@@ -30,13 +31,13 @@ export function MobileBottomNav() {
       className="shrink-0 border-t border-ink-900/10 bg-sand-50 lg:hidden"
       aria-label="Primary"
     >
-      <ul className="mx-auto grid max-w-lg grid-cols-5 gap-1 px-2 pb-[max(0.65rem,env(safe-area-inset-bottom))] pt-2">
+      <ul className="mx-auto grid max-w-lg grid-cols-6 gap-0.5 px-1.5 pb-[max(0.65rem,env(safe-area-inset-bottom))] pt-2">
         {links.map((link) => {
           const active = pathname === link.href || pathname.startsWith(`${link.href}/`);
           return (
             <li key={link.href}>
               <Link href={link.href} prefetch className={navClass(active)}>
-                {link.label}
+                {link.short}
               </Link>
             </li>
           );
