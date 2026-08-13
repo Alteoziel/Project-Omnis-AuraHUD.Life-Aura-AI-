@@ -251,7 +251,7 @@ export function useHomeChat(displayName: string) {
       throw new Error("Nearby link is not ready.");
     }
     const frame = typeof message === "string" ? message : encodeControl(message);
-    peer.send(bytesToB64Url(await encryptText(sessionKey, frame)));
+    await peer.sendWhenReady(bytesToB64Url(await encryptText(sessionKey, frame)));
   }, []);
 
   const connectPeer = useCallback(
@@ -387,29 +387,41 @@ export function useHomeChat(displayName: string) {
   const sendPhoto = useCallback(
     async (video: HTMLVideoElement) => {
       const sessionKey = sessionKeyRef.current;
-      if (!sessionKey) throw new Error("Nearby link is not ready.");
-      const plain = await captureFrameToJpeg(video);
-      setCameraMode(null);
-      const id = crypto.randomUUID();
-      const sealed = await encryptBytes(sessionKey, plain);
-      wipeBytes(plain);
-      await sendControl({
-        v: 1,
-        type: "photo-meta",
-        id,
-        mime: "image/jpeg",
-        byteLength: sealed.byteLength,
-        oneTime: true,
-      });
-      for (const frame of splitPhotoChunks(id, sealed)) {
-        await sendControl(frame);
+      if (!sessionKey) {
+        setError("Nearby link is not ready.");
+        return;
       }
-      wipeBytes(sealed);
-      await sendControl({ v: 1, type: "photo-end", id });
-      setThread((items) => [
-        ...items,
-        { id, kind: "photo", from: "me", state: "sent" },
-      ]);
+      try {
+        const plain = await captureFrameToJpeg(video);
+        setCameraMode(null);
+        const id = crypto.randomUUID();
+        const sealed = await encryptBytes(sessionKey, plain);
+        wipeBytes(plain);
+        await sendControl({
+          v: 1,
+          type: "photo-meta",
+          id,
+          mime: "image/jpeg",
+          byteLength: sealed.byteLength,
+          oneTime: true,
+        });
+        for (const frame of splitPhotoChunks(id, sealed)) {
+          await sendControl(frame);
+        }
+        wipeBytes(sealed);
+        await sendControl({ v: 1, type: "photo-end", id });
+        setThread((items) => [
+          ...items,
+          { id, kind: "photo", from: "me", state: "sent" },
+        ]);
+      } catch (err) {
+        setCameraMode(null);
+        setError(
+          err instanceof Error
+            ? err.message
+            : "Could not send that photo. Try again.",
+        );
+      }
     },
     [sendControl],
   );

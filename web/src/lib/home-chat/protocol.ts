@@ -1,7 +1,9 @@
 import { b64UrlToBytes, bytesToB64Url } from "@/lib/home-chat/crypto";
 
 export const HOME_CHAT_PROTOCOL_VERSION = 1;
-export const PHOTO_CHUNK_SIZE = 12_000;
+// iPhone data channels often cap a message at 16KiB. Chunks are encrypted and
+// base64'd twice, so keep the plaintext slice well under that.
+export const PHOTO_CHUNK_SIZE = 4_000;
 export const MAX_PHOTO_BYTES = 1_200_000;
 export const MAX_TEXT_CHARS = 2_000;
 

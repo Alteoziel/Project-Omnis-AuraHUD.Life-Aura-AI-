@@ -68,6 +68,9 @@ async function main() {
 
   const chunks = splitPhotoChunks("photo-1", photoSealed);
   assert.ok(chunks.length >= 2);
+  for (const frame of chunks) {
+    assert.ok(frame.length < 8_000, "photo chunk must fit an iPhone data channel");
+  }
   const byIndex = new Map<number, Uint8Array>();
   for (const frame of chunks) {
     const parsed = parsePhotoChunk(frame);
