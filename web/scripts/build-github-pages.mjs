@@ -11,6 +11,7 @@ import {
   existsSync,
   mkdirSync,
   readFileSync,
+  renameSync,
   rmSync,
   writeFileSync,
 } from "node:fs";
@@ -94,8 +95,14 @@ function restore() {
 function prefixPublicJson(basePath) {
   const out = join(webDir, "out");
   const manifestPath = join(out, "manifest.webmanifest");
-  if (!existsSync(manifestPath)) return;
-  const manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
+  let raw;
+  try {
+    raw = readFileSync(manifestPath, "utf8");
+  } catch (error) {
+    if (error && error.code === "ENOENT") return;
+    throw error;
+  }
+  const manifest = JSON.parse(raw);
   const prefix = (value) => {
     if (typeof value !== "string" || !value.startsWith("/")) return value;
     if (!basePath) return value;
@@ -110,7 +117,9 @@ function prefixPublicJson(basePath) {
       src: prefix(icon.src),
     }));
   }
-  writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
+  const nextPath = `${manifestPath}.tmp`;
+  writeFileSync(nextPath, `${JSON.stringify(manifest, null, 2)}\n`);
+  renameSync(nextPath, manifestPath);
 }
 
 function writeNoJekyll() {
@@ -137,9 +146,17 @@ function writeSpaFallback(basePath) {
           location.replace((repo || "") + p + (q || search || "") + hash);
         }
         var acc = rel.match(/^\\/accounts\\/([^/]+)\\/?$/);
-        if (acc && acc[1]) return go("/accounts/", "?account=" + encodeURIComponent(acc[1]));
+        if (acc && acc[1]) {
+          var accountQuery = new URLSearchParams();
+          accountQuery.set("account", acc[1]);
+          return go("/accounts/", "?" + accountQuery.toString());
+        }
         var inv = rel.match(/^\\/invite\\/([^/]+)\\/?$/);
-        if (inv && inv[1]) return go("/invite/", "?token=" + encodeURIComponent(inv[1]));
+        if (inv && inv[1]) {
+          var inviteQuery = new URLSearchParams();
+          inviteQuery.set("token", inv[1]);
+          return go("/invite/", "?" + inviteQuery.toString());
+        }
         if (/^\\/auth\\/callback\\/?$/.test(rel)) return go("/auth/callback/", search);
         go("/");
       })();
