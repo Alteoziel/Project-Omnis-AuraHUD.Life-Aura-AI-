@@ -38,6 +38,7 @@ import {
   normalizeReactionEmoji,
   upsertReaction,
 } from "@/lib/home-chat/reactions";
+import { shouldCloseOpenPhotoOnLeave } from "@/lib/home-chat/store";
 
 async function main() {
   const fixed = new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8]);
@@ -219,6 +220,11 @@ async function main() {
   assert.match(front.detail, /cannot tell if someone is watching the glass/);
   const hidden = describeScreenWatch({ visible: false, focused: true });
   assert.equal(hidden.inFront, false);
+
+  assert.equal(shouldCloseOpenPhotoOnLeave("visibilitychange", "hidden"), true);
+  assert.equal(shouldCloseOpenPhotoOnLeave("visibilitychange", "visible"), false);
+  assert.equal(shouldCloseOpenPhotoOnLeave("pagehide", "visible"), true);
+  assert.equal(shouldCloseOpenPhotoOnLeave("blur", "visible"), false);
 
   console.log("home-chat.test.ts: ok");
 }

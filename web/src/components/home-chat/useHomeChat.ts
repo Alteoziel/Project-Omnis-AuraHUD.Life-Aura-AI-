@@ -109,6 +109,10 @@ export function useHomeChat(displayName: string) {
   const stopAdvertiseRef = useRef<(() => void) | null>(null);
   const guestWaitRef = useRef<number | null>(null);
   const hangingUpRef = useRef(false);
+  const viewingPhotoRef = useRef<{
+    id: string;
+    bytes: Uint8Array;
+  } | null>(null);
 
   const resetError = useCallback(() => setError(null), []);
 
@@ -136,6 +140,9 @@ export function useHomeChat(displayName: string) {
     sessionKeyRef.current = null;
     assemblersRef.current.clear();
     pendingRef.current = [];
+    const viewing = viewingPhotoRef.current;
+    viewingPhotoRef.current = null;
+    if (viewing) wipeBytes(viewing.bytes);
     setThread([]);
     setDraft("");
     setQrUrl(null);
@@ -555,11 +562,13 @@ export function useHomeChat(displayName: string) {
       );
       return;
     }
+    viewingPhotoRef.current = { id, bytes };
     setViewingPhoto({ id, bytes });
   }, []);
 
   const closePhoto = useCallback(async () => {
-    const current = viewingPhoto;
+    const current = viewingPhotoRef.current;
+    viewingPhotoRef.current = null;
     setViewingPhoto(null);
     if (!current) return;
     wipeBytes(current.bytes);
@@ -575,7 +584,7 @@ export function useHomeChat(displayName: string) {
     } catch {
       // Link may already be gone; the photo is still wiped locally.
     }
-  }, [sendControl, viewingPhoto]);
+  }, [sendControl]);
 
   const scanFrame = useCallback(
     async (video: HTMLVideoElement) => {
