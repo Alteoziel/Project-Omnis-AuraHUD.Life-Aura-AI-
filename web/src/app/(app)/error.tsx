@@ -37,11 +37,10 @@ export default function AppError({
       ) : null}
       {looksLikeBankSync ? (
         <p className="mt-3 rounded-2xl bg-amber-100/80 px-4 py-3 text-sm text-amber-950">
-          Bank sync needs <code className="font-mono text-xs">PLAID_*</code>,{" "}
-          <code className="font-mono text-xs">SUPABASE_SECRET_KEY</code>, and{" "}
-          <code className="font-mono text-xs">BANK_TOKEN_ENCRYPTION_KEY</code> in
-          Doppler. If you recently rotated the encryption key, disconnect the bank
-          in Settings and connect it again.
+          Bank sync needs a Node host for Plaid secrets and is not available on
+          GitHub Pages. If you recently rotated{" "}
+          <code className="font-mono text-xs">BANK_TOKEN_ENCRYPTION_KEY</code>,
+          disconnect the bank in Settings and connect it again.
         </p>
       ) : null}
       <button

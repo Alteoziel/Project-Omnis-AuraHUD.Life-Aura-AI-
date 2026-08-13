@@ -15,8 +15,10 @@ export function AppOfflineShell({
 }) {
   return (
     <OfflineProvider userId={userId} budgetId={budgetId}>
-      <OfflineBanner />
-      {children}
+      <div className="flex min-h-0 flex-1 flex-col">
+        <OfflineBanner />
+        {children}
+      </div>
     </OfflineProvider>
   );
 }

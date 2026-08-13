@@ -37,43 +37,48 @@ PR quality gates from the governance stack stay in place. Product plans: [`docs/
 - Insights charts + rule-based trend tips
 - YNAB register / Reflect **CSV import**
 - Offline PWA: service worker caches app shell; cold starts paint from cache (stale-while-revalidate) with a dark splash so dark mode doesn’t flash white
-- Plaid bank sync (Link + transactions sync) + daily Vercel Cron
+- Hosted on **GitHub Pages** (static export). Plaid bank sync / daily cron need a Node host and are not available on Pages
 - Supabase Auth + budget-scoped RLS
 - Passkey (WebAuthn) or email/password sign-in (either works)
 - Installable PWA shell
 
 ## Quickstart — AuraHUD / Alte' (cloud only)
 
-This app is meant to run on **Vercel**. Secrets live in **Doppler** and sync into Vercel — no local CLI, no `.env` files.
+This app is meant to run on **GitHub Pages** as a static PWA. The browser talks to **Supabase** directly (anon key + RLS). There is no Vercel deploy.
 
 ### 1. Supabase
 
 1. Create a Supabase project
-2. Run **all** SQL files in [`supabase/migrations/`](supabase/migrations/) in order in the SQL editor (including multi-budget, Plaid, and assign-percent migrations). Skipping these causes logged-in pages to 500.
+2. Run **all** SQL files in [`supabase/migrations/`](supabase/migrations/) in order in the SQL editor (including multi-budget, Plaid, AuraHUD core, and Home Chat migrations). Skipping these causes logged-in pages to fail.
 3. Enable Email auth (password) under Authentication → Providers
-4. Enable **Passkeys** under Authentication → Passkeys (beta). Set Relying Party display name to `Alte' Budgeting`, RP ID to your app domain (e.g. `your-app.vercel.app`), and origins to your production/preview HTTPS URLs (plus `http://localhost:3000` for local). Also allow `/auth/callback` redirects under Authentication → URL Configuration.
+4. Enable **Passkeys** under Authentication → Passkeys (beta). Set Relying Party display name to `AuraHUD`, RP ID to your Pages host (e.g. `alteoziel.github.io`), and origins to your HTTPS Pages URL (plus `http://localhost:3000` for local). Also allow `/auth/callback/` redirects under Authentication → URL Configuration. Set **Site URL** to the Pages origin (include the repo path if this is a project site).
 
-### 2. Doppler (source of truth for secrets)
+### 2. GitHub Actions variables
 
-1. Create Doppler project `alte-budgeting`
-2. In configs `dev` / `preview` / `prd`, set the keys listed in [`web/doppler.secrets.example`](web/doppler.secrets.example):
+1. Repo → **Settings → Secrets and variables → Actions → Variables**
+2. Set the public keys listed in [`web/doppler.secrets.example`](web/doppler.secrets.example):
    - Required: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-   - Invites: `NEXT_PUBLIC_SITE_URL`
-   - Cron / webhooks: `SUPABASE_SECRET_KEY` (`sb_secret_…` from Supabase → API Keys; preferred over legacy `service_role`), `CRON_SECRET`, `BANK_TOKEN_ENCRYPTION_KEY`
-   - Plaid: `PLAID_CLIENT_ID`, `PLAID_SECRET`, `PLAID_ENV` (`sandbox` | `development` | `production`)
-3. Doppler dashboard → **Integrations** → **Vercel**
-4. Sync: `dev` → Development, `preview` → Preview, `prd` → Production
+   - Invites / auth redirects: `NEXT_PUBLIC_SITE_URL` (example: `https://alteoziel.github.io/Project-Omnis-AuraHUD.Life-Aura-AI-`)
+   - Optional: `NEXT_PUBLIC_BASE_PATH` (defaults to `/<repo>` for project sites; set to `/` if you attach a custom domain at the site root)
+3. Repo → **Settings → Pages → Build and deployment → Source: GitHub Actions**
 
-### 3. Vercel
+### 3. GitHub Pages
 
-1. Import this GitHub repo
-2. Set **Root Directory** to `web`
-3. Deploy — env vars arrive from the Doppler sync (do not paste secrets into Vercel by hand)
-4. Cron: [`web/vercel.json`](web/vercel.json) hits `/api/cron/plaid-sync` daily at `15 12 * * *` UTC (6:15 AM Mountain) with `Authorization: Bearer CRON_SECRET`. The route bypasses auth middleware, retries once per item, and logs loudly. Opening the app also catch-up syncs when the last sync is older than 16 hours.
+The workflow [`.github/workflows/github-pages.yml`](.github/workflows/github-pages.yml) runs `npm run build:pages` in `web/` and deploys `web/out`.
 
-Preview / production URLs come from Vercel after deploy.
+```bash
+cd web && GITHUB_PAGES=1 NEXT_PUBLIC_BASE_PATH=/your-repo npm run build:pages
+```
+
+After merge to `main`, open the Pages URL, sign in, and Add to Home Screen.
+
+Plaid bank sync, Vercel Cron, and CSV import **do not run on GitHub Pages** (no Node server). HUD, Home Chat, Trust, and the budget lens work in the browser against Supabase.
+
+Preview / production URLs come from GitHub Pages after the first successful Actions deploy.
 
 ### Plaid notes
+
+Plaid needs a Node host (API routes + secrets). Skip this section unless you later add a server. The migrations can still be applied so the schema is ready.
 
 - Keys: [Plaid Dashboard](https://dashboard.plaid.com) → Team Settings → Keys
 - Start with `PLAID_ENV=sandbox` (Link test user `user_good` / `pass_good`)

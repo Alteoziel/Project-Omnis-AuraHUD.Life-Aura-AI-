@@ -1,7 +1,7 @@
 /** Allow only same-origin relative paths (blocks //evil.com open redirects). */
 export function safeInternalPath(
   next: string | null | undefined,
-  fallback = "/budget",
+  fallback = "/hud",
 ): string {
   if (!next) return fallback;
   const value = next.trim();

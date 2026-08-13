@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { withBasePath } from "@/lib/base-path";
 import { createClient } from "@/lib/supabase/client";
 
 export function PasskeySetupPanel({ next }: { next: string }) {
@@ -24,7 +25,7 @@ export function PasskeySetupPanel({ next }: { next: string }) {
               setPending(false);
               return;
             }
-            window.location.assign(next);
+            window.location.assign(withBasePath(next));
           } catch (err) {
             setError(
               err instanceof Error

@@ -1,7 +1,11 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
+import {
+  applyAuraFeedback,
+  notifyAuraStreamChanged,
+} from "@/lib/aura/capture-flow";
+import { createClient } from "@/lib/supabase/client";
 
 export type StreamEvent = {
   id: string;
@@ -19,7 +23,6 @@ export function MicroFeedback({
   eventId: string;
   disabled?: boolean;
 }) {
-  const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [note, setNote] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
@@ -27,17 +30,23 @@ export function MicroFeedback({
 
   function send(feedback: "confirmed" | "rejected" | "edited", editedTitle?: string) {
     startTransition(async () => {
-      const res = await fetch("/api/aura/feedback", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ eventId, feedback, editedTitle }),
+      const supabase = createClient();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) return;
+      const data = await applyAuraFeedback({
+        supabase,
+        userId: user.id,
+        eventId,
+        feedback,
+        editedTitle,
       });
-      const data = (await res.json()) as { note?: string };
       if (feedback === "rejected") {
         setNote(data.note ?? "Noted — I won’t assume that again.");
       }
       setEditing(false);
-      router.refresh();
+      notifyAuraStreamChanged();
     });
   }
 

@@ -1,7 +1,11 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
+import {
+  captureAuraIntent,
+  notifyAuraStreamChanged,
+} from "@/lib/aura/capture-flow";
+import { createClient } from "@/lib/supabase/client";
 
 type Receipt = {
   message: string;
@@ -10,39 +14,36 @@ type Receipt = {
 };
 
 export function CommandBar() {
-  const router = useRouter();
   const [text, setText] = useState("");
   const [receipt, setReceipt] = useState<Receipt | null>(null);
-  const [note, setNote] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
-  function onSubmit(e: React.FormEvent) {
-    e.preventDefault();
+  function onSubmit(event: React.FormEvent) {
+    event.preventDefault();
     const value = text.trim();
     if (!value || pending) return;
     setError(null);
-    setNote(null);
     startTransition(async () => {
       try {
-        const res = await fetch("/api/aura/route-intent", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ text: value }),
-        });
-        const data = (await res.json()) as {
-          error?: string;
-          receipt?: Receipt;
-        };
-        if (!res.ok) {
-          setError(data.error ?? "Capture failed");
+        const supabase = createClient();
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+        if (!user) {
+          setError("Sign in to capture.");
           return;
         }
+        const data = await captureAuraIntent({
+          supabase,
+          userId: user.id,
+          text: value,
+        });
         setText("");
-        setReceipt(data.receipt ?? null);
-        router.refresh();
-      } catch {
-        setError("Network error — try again");
+        setReceipt(data.receipt);
+        notifyAuraStreamChanged();
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Capture failed");
       }
     });
   }
@@ -56,7 +57,7 @@ export function CommandBar() {
         <input
           id="aura-command"
           value={text}
-          onChange={(e) => setText(e.target.value)}
+          onChange={(event) => setText(event.target.value)}
           placeholder="Tell Aura anything — task, reminder, spend…"
           autoComplete="off"
           maxLength={500}
@@ -73,11 +74,6 @@ export function CommandBar() {
       {receipt ? (
         <p className="text-xs text-ink-500" role="status">
           {receipt.message}
-        </p>
-      ) : null}
-      {note ? (
-        <p className="text-xs font-semibold text-moss-600" role="status">
-          {note}
         </p>
       ) : null}
       {error ? (

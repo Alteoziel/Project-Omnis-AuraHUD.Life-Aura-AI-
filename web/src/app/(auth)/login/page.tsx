@@ -1,45 +1,99 @@
-import Link from "next/link";
-import { PasskeySignInButton } from "@/components/PasskeySignInButton";
-import { PendingSubmitButton } from "@/components/PendingSubmitButton";
-import { signInAction, signUpAction } from "@/lib/actions";
-import { safeInternalPath } from "@/lib/paths";
+"use client";
 
-export default async function LoginPage({
-  searchParams,
-}: {
-  searchParams: Promise<{
-    error?: string;
-    notice?: string;
-    mode?: string;
-    next?: string;
-  }>;
-}) {
-  const params = await searchParams;
-  const isSignup = params.mode === "signup";
-  const nextPath = safeInternalPath(params.next ?? "/budget");
+import Link from "next/link";
+import { Suspense, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { PasskeySignInButton } from "@/components/PasskeySignInButton";
+import { withBasePath } from "@/lib/base-path";
+import { safeInternalPath } from "@/lib/paths";
+import { createClient } from "@/lib/supabase/client";
+
+function LoginForm() {
+  const searchParams = useSearchParams();
+  const isSignup = searchParams.get("mode") === "signup";
+  const nextPath = useMemo(
+    () => safeInternalPath(searchParams.get("next") ?? "/hud"),
+    [searchParams],
+  );
+  const notice = searchParams.get("notice");
+  const errorParam = searchParams.get("error");
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState<string | null>(errorParam);
+
+  async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    const email = String(form.get("email") ?? "").trim();
+    const password = String(form.get("password") ?? "");
+    const displayName = String(form.get("displayName") ?? "").trim();
+    setPending(true);
+    setError(null);
+    try {
+      const supabase = createClient();
+      if (isSignup) {
+        const { data, error: signUpError } = await supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            data: { display_name: displayName || email.split("@")[0] },
+          },
+        });
+        if (signUpError) {
+          setError(signUpError.message);
+          setPending(false);
+          return;
+        }
+        if (!data.session) {
+          setPending(false);
+          window.location.assign(
+            withBasePath(
+              `/login?notice=${encodeURIComponent(
+                "Check your email to confirm your account, then sign in.",
+              )}&mode=signup`,
+            ),
+          );
+          return;
+        }
+      } else {
+        const { error: signInError } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
+        if (signInError) {
+          setError(signInError.message);
+          setPending(false);
+          return;
+        }
+      }
+      window.location.assign(withBasePath(nextPath));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Sign-in failed.");
+      setPending(false);
+    }
+  }
 
   return (
     <main className="flex min-h-dvh items-center bg-app-glow px-5 py-10">
       <div className="mx-auto w-full max-w-md animate-rise card-surface rounded-2xl p-6 backdrop-blur">
         <p className="text-xs font-bold uppercase tracking-[0.2em] text-moss-500">
-          Alte&apos; Budgeting
+          AuraHUD
         </p>
         <h1 className="mt-2 font-display text-3xl font-bold text-ink-900">
-          {isSignup ? "Create your budget" : "Welcome back"}
+          {isSignup ? "Create your HUD" : "Welcome back"}
         </h1>
         <p className="mt-2 text-sm text-ink-600">
-          Private by design. Your numbers stay in your Supabase project.
+          Private by design. Your life data stays in your Supabase project.
         </p>
 
-        {params.notice ? (
+        {notice ? (
           <p className="mt-4 rounded-xl bg-moss-500/15 px-3 py-2 text-sm text-moss-600">
-            {params.notice}
+            {notice}
           </p>
         ) : null}
 
-        {params.error ? (
+        {error ? (
           <p className="mt-4 rounded-xl bg-coral-400/15 px-3 py-2 text-sm text-coral-500">
-            {params.error}
+            {error}
           </p>
         ) : null}
 
@@ -55,10 +109,9 @@ export default async function LoginPage({
         ) : null}
 
         <form
-          action={isSignup ? signUpAction : signInAction}
+          onSubmit={onSubmit}
           className={`${isSignup ? "mt-6" : "mt-4"} space-y-3`}
         >
-          <input type="hidden" name="next" value={nextPath} />
           {isSignup ? (
             <label className="block text-sm font-semibold text-ink-700">
               Display name
@@ -92,12 +145,19 @@ export default async function LoginPage({
               placeholder="••••••••"
             />
           </label>
-          <PendingSubmitButton
-            pendingLabel={isSignup ? "Creating…" : "Signing in…"}
-            className="w-full rounded-2xl bg-ink-900 px-4 py-3.5 text-sm font-bold text-sand-50 hover:bg-ink-800"
+          <button
+            type="submit"
+            disabled={pending}
+            className="w-full rounded-2xl bg-ink-900 px-4 py-3.5 text-sm font-bold text-sand-50 hover:bg-ink-800 disabled:opacity-60"
           >
-            {isSignup ? "Create account" : "Sign in with password"}
-          </PendingSubmitButton>
+            {pending
+              ? isSignup
+                ? "Creating…"
+                : "Signing in…"
+              : isSignup
+                ? "Create account"
+                : "Sign in with password"}
+          </button>
         </form>
 
         {!isSignup ? (
@@ -126,5 +186,19 @@ export default async function LoginPage({
         </p>
       </div>
     </main>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense
+      fallback={
+        <main className="flex min-h-dvh items-center bg-app-glow px-5 py-10">
+          <div className="mx-auto h-80 w-full max-w-md animate-pulse rounded-2xl bg-sand-200/50" />
+        </main>
+      }
+    >
+      <LoginForm />
+    </Suspense>
   );
 }

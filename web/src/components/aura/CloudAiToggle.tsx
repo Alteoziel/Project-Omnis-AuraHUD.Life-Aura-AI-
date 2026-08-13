@@ -1,14 +1,13 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
+import { createClient } from "@/lib/supabase/client";
 
 export function CloudAiToggle({
   initialEnabled,
 }: {
   initialEnabled: boolean;
 }) {
-  const router = useRouter();
   const [enabled, setEnabled] = useState(initialEnabled);
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -17,17 +16,26 @@ export function CloudAiToggle({
     const next = !enabled;
     setError(null);
     startTransition(async () => {
-      const res = await fetch("/api/aura/privacy", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ cloud_ai_enabled: next }),
-      });
-      if (!res.ok) {
+      const supabase = createClient();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) {
+        setError("Sign in to change this.");
+        return;
+      }
+      const { error: updateError } = await supabase
+        .from("aura_privacy_settings")
+        .upsert({
+          user_id: user.id,
+          cloud_ai_enabled: next,
+          updated_at: new Date().toISOString(),
+        });
+      if (updateError) {
         setError("Could not update privacy setting");
         return;
       }
       setEnabled(next);
-      router.refresh();
     });
   }
 

@@ -13,7 +13,7 @@
       name="apple-mobile-web-app-status-bar-style"
       content="black-translucent"
     />
-    <title>Alte' Budgeting</title>
+    <title>AuraHUD</title>
     <style>
       html,
       body {
@@ -29,6 +29,39 @@
       (async function () {
         var url = location.href;
         var lockKey = "alte-boot-lock";
+        function appBase() {
+          try {
+            if (navigator.serviceWorker && navigator.serviceWorker.controller) {
+              return new URL(
+                "./",
+                navigator.serviceWorker.controller.scriptURL,
+              ).pathname.replace(/\/$/, "");
+            }
+          } catch (e) {}
+          var path = location.pathname;
+          var known = [
+            "/hud",
+            "/login",
+            "/budget",
+            "/accounts",
+            "/home-chat",
+            "/trust",
+            "/settings",
+            "/privacy",
+            "/insights",
+            "/transactions",
+            "/import",
+            "/offline",
+            "/invite",
+            "/passkey-setup",
+            "/auth",
+          ];
+          for (var i = 0; i < known.length; i++) {
+            var idx = path.indexOf(known[i]);
+            if (idx > 0) return path.slice(0, idx);
+          }
+          return "";
+        }
         try {
           // Avoid a boot→replace→boot loop if the page cache never warms.
           if (sessionStorage.getItem(lockKey) === url) {
@@ -49,7 +82,7 @@
           location.replace(url);
         } catch (e) {
           sessionStorage.removeItem(lockKey);
-          location.replace("/offline.html");
+          location.replace(appBase() + "/offline.html");
         }
       })();
     </script>

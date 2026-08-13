@@ -1,5 +1,8 @@
 import type { NextConfig } from "next";
 
+const isGitHubPages = process.env.GITHUB_PAGES === "1";
+const basePath = (process.env.NEXT_PUBLIC_BASE_PATH ?? "").replace(/\/$/, "");
+
 // CSP is set per-request in middleware with a fresh nonce (see src/lib/security/csp.ts).
 // Do not set a static Content-Security-Policy here — it would fight the nonce policy.
 const securityHeaders = [
@@ -16,39 +19,51 @@ const securityHeaders = [
 const nextConfig: NextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
-  async headers() {
-    return [
-      {
-        source: "/:path*",
-        headers: securityHeaders,
-      },
-      {
-        source: "/sw.js",
-        headers: [
-          { key: "Cache-Control", value: "no-cache, no-store, must-revalidate" },
-          { key: "Service-Worker-Allowed", value: "/" },
-        ],
-      },
-      {
-        source: "/manifest.webmanifest",
-        headers: [
-          {
-            key: "Cache-Control",
-            value: "public, max-age=0, must-revalidate",
-          },
-        ],
-      },
-      {
-        source: "/offline.html",
-        headers: [
-          {
-            key: "Cache-Control",
-            value: "public, max-age=0, must-revalidate",
-          },
-        ],
-      },
-    ];
-  },
+  ...(isGitHubPages
+    ? {
+        output: "export" as const,
+        trailingSlash: true,
+        images: { unoptimized: true },
+        ...(basePath ? { basePath, assetPrefix: basePath } : {}),
+      }
+    : {
+        async headers() {
+          return [
+            {
+              source: "/:path*",
+              headers: securityHeaders,
+            },
+            {
+              source: "/sw.js",
+              headers: [
+                {
+                  key: "Cache-Control",
+                  value: "no-cache, no-store, must-revalidate",
+                },
+                { key: "Service-Worker-Allowed", value: "/" },
+              ],
+            },
+            {
+              source: "/manifest.webmanifest",
+              headers: [
+                {
+                  key: "Cache-Control",
+                  value: "public, max-age=0, must-revalidate",
+                },
+              ],
+            },
+            {
+              source: "/offline.html",
+              headers: [
+                {
+                  key: "Cache-Control",
+                  value: "public, max-age=0, must-revalidate",
+                },
+              ],
+            },
+          ];
+        },
+      }),
 };
 
 export default nextConfig;

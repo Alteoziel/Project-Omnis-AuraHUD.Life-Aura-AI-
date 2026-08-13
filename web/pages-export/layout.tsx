@@ -1,5 +1,4 @@
 import type { Metadata, Viewport } from "next";
-import { headers } from "next/headers";
 import { Syne, Source_Sans_3 } from "next/font/google";
 import { RegisterServiceWorker } from "@/components/RegisterServiceWorker";
 import { ThemeInit } from "@/components/ThemeInit";
@@ -52,16 +51,13 @@ export const viewport: Viewport = {
   viewportFit: "cover",
 };
 
-// Blocking CSS paints before JS/CSS bundles — kills white FOUC on cold start.
 const themeBootStyle = `html,body{background-color:#0b1220;color-scheme:dark}
 @media (prefers-color-scheme:light){html:not(.dark),html:not(.dark) body{background-color:#e8eef4;color-scheme:light}}
 html.dark,html.dark body{background-color:#0b1220!important;color-scheme:dark}
 html.light,html.light body{background-color:#e8eef4!important;color-scheme:light}`;
 
-// Runs in <head>: honor saved theme even when it differs from system.
 const themeScript = `(function(){try{var p=localStorage.getItem("alte-theme");var d=p==="dark"||((!p||p==="system")&&window.matchMedia("(prefers-color-scheme: dark)").matches);var r=document.documentElement;var bg=d?"#0b1220":"#e8eef4";r.classList.toggle("dark",d);r.classList.toggle("light",!d);r.style.colorScheme=d?"dark":"light";r.style.backgroundColor=bg;var m=document.querySelector('meta[name="theme-color"]');if(!m){m=document.createElement("meta");m.setAttribute("name","theme-color");document.head.appendChild(m);}m.setAttribute("content",bg);}catch(e){}})();`;
 
-// Body exists here — paint it before React hydrates / data streams.
 const bodyThemeScript = `(function(){try{var d=document.documentElement.classList.contains("dark");document.body.style.backgroundColor=d?"#0b1220":"#e8eef4";}catch(e){}})();`;
 
 const appleSplashes: Array<{ href: string; media: string }> = [
@@ -112,26 +108,14 @@ const appleSplashes: Array<{ href: string; media: string }> = [
   },
 ];
 
-export default async function RootLayout({
+export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
-  // GitHub Pages static export cannot call headers(). Node/CSP builds still do.
-  let nonce: string | undefined;
-  if (process.env.GITHUB_PAGES !== "1") {
-    nonce = (await headers()).get("x-nonce") ?? undefined;
-  }
-
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
-        <style
-          nonce={nonce}
-          dangerouslySetInnerHTML={{ __html: themeBootStyle }}
-        />
-        <script
-          nonce={nonce}
-          dangerouslySetInnerHTML={{ __html: themeScript }}
-        />
+        <style dangerouslySetInnerHTML={{ __html: themeBootStyle }} />
+        <script dangerouslySetInnerHTML={{ __html: themeScript }} />
         <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
         {appleSplashes.map((splash) => (
           <link
@@ -149,10 +133,7 @@ export default async function RootLayout({
         <meta name="apple-mobile-web-app-title" content="AuraHUD" />
       </head>
       <body className={`${display.variable} ${sans.variable} font-sans antialiased`}>
-        <script
-          nonce={nonce}
-          dangerouslySetInnerHTML={{ __html: bodyThemeScript }}
-        />
+        <script dangerouslySetInnerHTML={{ __html: bodyThemeScript }} />
         {children}
         <ThemeInit />
         <RegisterServiceWorker />

@@ -2,7 +2,7 @@
   "name": "AuraHUD",
   "short_name": "AuraHUD",
   "description": "Private life HUD — capture in seconds, Cloud AI off by default",
-  "start_url": "/hud",
+    "start_url": "/hud/",
   "scope": "/",
   "id": "/",
   "display": "standalone",

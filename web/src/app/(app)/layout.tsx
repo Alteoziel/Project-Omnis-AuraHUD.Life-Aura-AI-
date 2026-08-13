@@ -1,11 +1,9 @@
-import { AppChrome } from "@/components/AppChrome";
-
-export const dynamic = "force-dynamic";
+import { ClientAppChrome } from "@/components/ClientAppChrome";
 
 export default function AuthenticatedLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  return <AppChrome>{children}</AppChrome>;
+  return <ClientAppChrome>{children}</ClientAppChrome>;
 }

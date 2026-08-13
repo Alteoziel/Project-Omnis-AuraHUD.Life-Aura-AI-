@@ -8,6 +8,8 @@ dashboard/.next/
 dashboard/node_modules/
 web/.env.local
 web/.next/
+web/out/
+web/.pages-stash/
 web/node_modules/
 web/tsconfig.tsbuildinfo
 

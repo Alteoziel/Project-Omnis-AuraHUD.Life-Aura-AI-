@@ -6,7 +6,7 @@
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="theme-color" content="#080c0b" />
     <meta name="color-scheme" content="dark light" />
-    <title>Offline · Alte' Budgeting</title>
+    <title>Offline · AuraHUD</title>
     <style>
       :root {
         color-scheme: dark light;
@@ -104,7 +104,7 @@
   </head>
   <body>
     <main>
-      <p class="eyebrow">Alte' Budgeting</p>
+      <p class="eyebrow">AuraHUD</p>
       <h1>You're offline</h1>
       <p>
         This page loaded from your phone. Open a cached view of your last synced budget,
@@ -117,13 +117,31 @@
         </p>
       </div>
       <div class="actions">
-        <a class="primary" href="/offline">Open cached budget</a>
-        <a class="secondary" href="/budget">Retry Budget</a>
+        <a class="primary" href="/offline" id="cached">Open cached budget</a>
+        <a class="secondary" href="/budget" id="retry">Retry Budget</a>
         <button class="secondary" type="button" id="reload">Reload</button>
       </div>
       <p id="status"></p>
     </main>
     <script>
+      function appBase() {
+        try {
+          if (navigator.serviceWorker && navigator.serviceWorker.controller) {
+            return new URL(
+              "./",
+              navigator.serviceWorker.controller.scriptURL,
+            ).pathname.replace(/\/$/, "");
+          }
+        } catch (e) {}
+        var path = location.pathname;
+        if (path.endsWith("/offline.html")) {
+          return path.slice(0, -"/offline.html".length);
+        }
+        return "";
+      }
+      var base = appBase();
+      document.getElementById("cached").setAttribute("href", base + "/offline");
+      document.getElementById("retry").setAttribute("href", base + "/budget");
       const status = document.getElementById("status");
       function refreshStatus() {
         status.textContent = navigator.onLine
