@@ -1,32 +1,32 @@
 import type { Metadata, Viewport } from "next";
 import { headers } from "next/headers";
-import { Fraunces, Nunito_Sans } from "next/font/google";
+import { Syne, Source_Sans_3 } from "next/font/google";
 import { RegisterServiceWorker } from "@/components/RegisterServiceWorker";
 import { ThemeInit } from "@/components/ThemeInit";
 import "./globals.css";
 
-const display = Fraunces({
+const display = Syne({
   subsets: ["latin"],
   variable: "--font-display",
-  weight: ["500", "700"],
+  weight: ["500", "600", "700"],
 });
 
-const sans = Nunito_Sans({
+const sans = Source_Sans_3({
   subsets: ["latin"],
   variable: "--font-sans",
-  weight: ["400", "600", "700", "800"],
+  weight: ["400", "600", "700"],
 });
 
 export const metadata: Metadata = {
-  title: "Alte' Budgeting",
-  description: "A calm, mobile-first budget you actually want to open — including offline.",
-  applicationName: "Alte' Budgeting",
+  title: "AuraHUD",
+  description:
+    "A calm, private life HUD — capture in seconds, Cloud AI off by default, budget included.",
+  applicationName: "AuraHUD",
   manifest: "/manifest.webmanifest",
   appleWebApp: {
     capable: true,
-    // Match the app wash so iOS doesn't force a white status bar on launch.
     statusBarStyle: "black-translucent",
-    title: "Alte' Budgeting",
+    title: "AuraHUD",
   },
   icons: {
     apple: [{ url: "/icons/apple-touch-icon.png", sizes: "180x180" }],
@@ -42,8 +42,8 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = {
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#e9e3d6" },
-    { media: "(prefers-color-scheme: dark)", color: "#080c0b" },
+    { media: "(prefers-color-scheme: light)", color: "#e8eef4" },
+    { media: "(prefers-color-scheme: dark)", color: "#0b1220" },
   ],
   width: "device-width",
   initialScale: 1,
@@ -53,16 +53,16 @@ export const viewport: Viewport = {
 };
 
 // Blocking CSS paints before JS/CSS bundles — kills white FOUC on cold start.
-const themeBootStyle = `html,body{background-color:#080c0b;color-scheme:dark}
-@media (prefers-color-scheme:light){html:not(.dark),html:not(.dark) body{background-color:#e9e3d6;color-scheme:light}}
-html.dark,html.dark body{background-color:#080c0b!important;color-scheme:dark}
-html.light,html.light body{background-color:#e9e3d6!important;color-scheme:light}`;
+const themeBootStyle = `html,body{background-color:#0b1220;color-scheme:dark}
+@media (prefers-color-scheme:light){html:not(.dark),html:not(.dark) body{background-color:#e8eef4;color-scheme:light}}
+html.dark,html.dark body{background-color:#0b1220!important;color-scheme:dark}
+html.light,html.light body{background-color:#e8eef4!important;color-scheme:light}`;
 
 // Runs in <head>: honor saved theme even when it differs from system.
-const themeScript = `(function(){try{var p=localStorage.getItem("alte-theme");var d=p==="dark"||((!p||p==="system")&&window.matchMedia("(prefers-color-scheme: dark)").matches);var r=document.documentElement;var bg=d?"#080c0b":"#e9e3d6";r.classList.toggle("dark",d);r.classList.toggle("light",!d);r.style.colorScheme=d?"dark":"light";r.style.backgroundColor=bg;var m=document.querySelector('meta[name="theme-color"]');if(!m){m=document.createElement("meta");m.setAttribute("name","theme-color");document.head.appendChild(m);}m.setAttribute("content",bg);}catch(e){}})();`;
+const themeScript = `(function(){try{var p=localStorage.getItem("alte-theme");var d=p==="dark"||((!p||p==="system")&&window.matchMedia("(prefers-color-scheme: dark)").matches);var r=document.documentElement;var bg=d?"#0b1220":"#e8eef4";r.classList.toggle("dark",d);r.classList.toggle("light",!d);r.style.colorScheme=d?"dark":"light";r.style.backgroundColor=bg;var m=document.querySelector('meta[name="theme-color"]');if(!m){m=document.createElement("meta");m.setAttribute("name","theme-color");document.head.appendChild(m);}m.setAttribute("content",bg);}catch(e){}})();`;
 
 // Body exists here — paint it before React hydrates / data streams.
-const bodyThemeScript = `(function(){try{var d=document.documentElement.classList.contains("dark");document.body.style.backgroundColor=d?"#080c0b":"#e9e3d6";}catch(e){}})();`;
+const bodyThemeScript = `(function(){try{var d=document.documentElement.classList.contains("dark");document.body.style.backgroundColor=d?"#0b1220":"#e8eef4";}catch(e){}})();`;
 
 const appleSplashes: Array<{ href: string; media: string }> = [
   {

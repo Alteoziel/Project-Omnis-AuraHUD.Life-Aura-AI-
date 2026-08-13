@@ -58,7 +58,7 @@ export async function AppChrome({ children }: { children: React.ReactNode }) {
             <header className="flex items-start justify-between gap-3 px-4 pb-2 pt-[max(1.25rem,env(safe-area-inset-top))] sm:px-6 lg:px-8">
               <div className="min-w-0">
                 <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-moss-500 sm:text-xs">
-                  Alte&apos; Budgeting
+                  AuraHUD
                 </p>
                 {active ? (
                   <div className="mt-2 max-w-xs">

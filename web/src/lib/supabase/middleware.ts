@@ -10,6 +10,7 @@ function isPublicPath(path: string): boolean {
   return (
     path === "/" ||
     path.startsWith("/login") ||
+    path.startsWith("/privacy") ||
     path.startsWith("/invite") ||
     path.startsWith("/auth/") ||
     path.startsWith("/api/cron/") ||
@@ -128,7 +129,8 @@ export async function updateSession(request: NextRequest) {
     !isAuthCallback &&
     !isPlaidWebhook &&
     !isPublicAsset &&
-    path !== "/"
+    path !== "/" &&
+    !path.startsWith("/privacy")
   ) {
     const redirectUrl = new URL("/login", request.url);
     redirectUrl.searchParams.set("next", path);
@@ -136,7 +138,7 @@ export async function updateSession(request: NextRequest) {
   }
 
   if (user && (isAuthRoute || path === "/")) {
-    return NextResponse.redirect(new URL("/budget", request.url));
+    return NextResponse.redirect(new URL("/hud", request.url));
   }
 
   return supabaseResponse;

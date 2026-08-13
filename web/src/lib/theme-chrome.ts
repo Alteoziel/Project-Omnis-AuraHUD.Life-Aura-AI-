@@ -1,13 +1,13 @@
 /** Page wash colors — keep in sync with globals.css `--page-bg`. */
 export const THEME_PAGE_BG = {
-  light: "#e9e3d6",
-  dark: "#080c0b",
+  light: "#e8eef4",
+  dark: "#0b1220",
 } as const;
 
 /** Browser chrome / PWA theme-color matching the page wash (avoids white flash). */
 export const THEME_CHROME = {
-  light: "#e9e3d6",
-  dark: "#080c0b",
+  light: "#e8eef4",
+  dark: "#0b1220",
 } as const;
 
 export type ThemePref = "system" | "light" | "dark";
