@@ -14,7 +14,9 @@ export function OneTimePhotoViewer({
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const blob = new Blob([bytes.slice()], { type: "image/jpeg" });
+    const buffer = new ArrayBuffer(bytes.byteLength);
+    new Uint8Array(buffer).set(bytes);
+    const blob = new Blob([buffer], { type: "image/jpeg" });
     const url = URL.createObjectURL(blob);
     const image = new Image();
     image.onload = () => {

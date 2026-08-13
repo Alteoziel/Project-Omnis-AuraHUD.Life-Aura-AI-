@@ -1,7 +1,9 @@
 import { b64UrlToBytes, bytesToB64Url } from "@/lib/home-chat/crypto";
 
 export const HOME_CHAT_PROTOCOL_VERSION = 1;
-export const PHOTO_CHUNK_SIZE = 12_000;
+// iPhone data channels often cap a message at 16KiB. Chunks are encrypted and
+// base64'd twice, so keep the plaintext slice well under that.
+export const PHOTO_CHUNK_SIZE = 4_000;
 export const MAX_PHOTO_BYTES = 1_200_000;
 export const MAX_TEXT_CHARS = 2_000;
 
@@ -21,7 +23,19 @@ export type ControlMessage =
   | { v: 1; type: "photo-end"; id: string }
   | { v: 1; type: "viewed"; id: string }
   | { v: 1; type: "ack"; id: string }
-  | { v: 1; type: "bye" };
+  | { v: 1; type: "bye" }
+  | { v: 1; type: "react"; id: string; emoji: string };
+
+const CONTROL_TYPES = new Set([
+  "hello",
+  "text",
+  "photo-meta",
+  "photo-end",
+  "viewed",
+  "ack",
+  "bye",
+  "react",
+]);
 
 export type PhotoChunkHeader = {
   v: 1;
@@ -35,12 +49,23 @@ export function encodeControl(message: ControlMessage): string {
   return JSON.stringify(message);
 }
 
-export function parseControl(raw: string): ControlMessage {
-  const parsed = JSON.parse(raw) as ControlMessage;
-  if (!parsed || parsed.v !== HOME_CHAT_PROTOCOL_VERSION || !parsed.type) {
+export function parseControl(raw: string): ControlMessage | null {
+  const parsed = JSON.parse(raw) as { v?: number; type?: string; id?: string; emoji?: string };
+  if (!parsed || parsed.v !== HOME_CHAT_PROTOCOL_VERSION || typeof parsed.type !== "string") {
     throw new Error("Unknown Home Chat message.");
   }
-  return parsed;
+  if (!CONTROL_TYPES.has(parsed.type)) return null;
+  if (parsed.type === "react") {
+    if (typeof parsed.id !== "string" || !parsed.id) {
+      throw new Error("Invalid reaction.");
+    }
+    const emoji = typeof parsed.emoji === "string" ? parsed.emoji : "";
+    if (emoji.length > 16) {
+      throw new Error("Reaction is too long.");
+    }
+    return { v: 1, type: "react", id: parsed.id, emoji };
+  }
+  return parsed as ControlMessage;
 }
 
 export function splitPhotoChunks(id: string, ciphertext: Uint8Array): string[] {

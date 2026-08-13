@@ -8,9 +8,24 @@ export async function blobToBytes(blob: Blob): Promise<Uint8Array> {
   return new Uint8Array(await blob.arrayBuffer());
 }
 
+function jpegDataUrlToBytes(dataUrl: string): Uint8Array {
+  const comma = dataUrl.indexOf(",");
+  const binary = atob(comma >= 0 ? dataUrl.slice(comma + 1) : dataUrl);
+  const out = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i += 1) {
+    out[i] = binary.charCodeAt(i);
+  }
+  return out;
+}
+
+function bytesToArrayBuffer(bytes: Uint8Array): ArrayBuffer {
+  const buffer = new ArrayBuffer(bytes.byteLength);
+  new Uint8Array(buffer).set(bytes);
+  return buffer;
+}
+
 export async function bytesToJpegBlob(bytes: Uint8Array): Promise<Blob> {
-  const copy = bytes.slice();
-  return new Blob([copy], { type: "image/jpeg" });
+  return new Blob([bytesToArrayBuffer(bytes)], { type: "image/jpeg" });
 }
 
 /**
@@ -22,8 +37,8 @@ export async function captureFrameToJpeg(
 ): Promise<Uint8Array> {
   const width = video.videoWidth;
   const height = video.videoHeight;
-  if (!width || !height) {
-    throw new Error("Camera is not ready yet.");
+  if (!width || !height || video.readyState < 2) {
+    throw new Error("Camera is not ready yet. Hold still and tap again.");
   }
   const scale = Math.min(1, MAX_EDGE / Math.max(width, height));
   const targetW = Math.max(1, Math.round(width * scale));
@@ -37,8 +52,20 @@ export async function captureFrameToJpeg(
   const blob = await new Promise<Blob>((resolve, reject) => {
     canvas.toBlob(
       (next) => {
-        if (next) resolve(next);
-        else reject(new Error("Could not encode the photo."));
+        if (next && next.size > 0) {
+          resolve(next);
+          return;
+        }
+        try {
+          const dataUrl = canvas.toDataURL("image/jpeg", JPEG_QUALITY);
+          resolve(
+            new Blob([bytesToArrayBuffer(jpegDataUrlToBytes(dataUrl))], {
+              type: "image/jpeg",
+            }),
+          );
+        } catch {
+          reject(new Error("Could not encode the photo."));
+        }
       },
       "image/jpeg",
       JPEG_QUALITY,

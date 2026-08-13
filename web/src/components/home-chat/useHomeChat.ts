@@ -35,6 +35,7 @@ import {
   splitPhotoChunks,
   type ControlMessage,
 } from "@/lib/home-chat/protocol";
+import { upsertReaction, type ChatReaction } from "@/lib/home-chat/reactions";
 import { renderInviteQrDataUrl } from "@/lib/home-chat/qr";
 import {
   closeHomeChatRoom,
@@ -51,12 +52,19 @@ import {
 export type ChatPhase = "idle" | "hosting" | "joining" | "connecting" | "chat";
 
 export type ThreadItem =
-  | { id: string; kind: "text"; from: "me" | "them"; body: string }
+  | {
+      id: string;
+      kind: "text";
+      from: "me" | "them";
+      body: string;
+      reactions: ChatReaction[];
+    }
   | {
       id: string;
       kind: "photo";
       from: "me" | "them";
       state: "ready" | "removed" | "sent";
+      reactions: ChatReaction[];
     };
 
 type PhotoAssembler = {
@@ -166,7 +174,7 @@ export function useHomeChat(displayName: string) {
     if (message.type === "text") {
       setThread((items) => [
         ...items,
-        { id: message.id, kind: "text", from: "them", body: message.body },
+        { id: message.id, kind: "text", from: "them", body: message.body, reactions: [] },
       ]);
       return;
     }
@@ -197,7 +205,7 @@ export function useHomeChat(displayName: string) {
       wipeBytes(plain);
       setThread((items) => [
         ...items,
-        { id: message.id, kind: "photo", from: "them", state: "ready" },
+        { id: message.id, kind: "photo", from: "them", state: "ready", reactions: [] },
       ]);
       return;
     }
@@ -206,6 +214,19 @@ export function useHomeChat(displayName: string) {
         items.map((item) =>
           item.id === message.id && item.kind === "photo"
             ? { ...item, state: "removed" }
+            : item,
+        ),
+      );
+      return;
+    }
+    if (message.type === "react") {
+      setThread((items) =>
+        items.map((item) =>
+          item.id === message.id
+            ? {
+                ...item,
+                reactions: upsertReaction(item.reactions, "them", message.emoji),
+              }
             : item,
         ),
       );
@@ -231,7 +252,9 @@ export function useHomeChat(displayName: string) {
         assemblersRef.current.set(parsed.header.id, assembler);
         return;
       }
-      await handleControl(parseControl(plain));
+      const message = parseControl(plain);
+      if (!message) return;
+      await handleControl(message);
     },
     [handleControl],
   );
@@ -251,7 +274,7 @@ export function useHomeChat(displayName: string) {
       throw new Error("Nearby link is not ready.");
     }
     const frame = typeof message === "string" ? message : encodeControl(message);
-    peer.send(bytesToB64Url(await encryptText(sessionKey, frame)));
+    await peer.sendWhenReady(bytesToB64Url(await encryptText(sessionKey, frame)));
   }, []);
 
   const connectPeer = useCallback(
@@ -380,36 +403,51 @@ export function useHomeChat(displayName: string) {
     }
     const id = crypto.randomUUID();
     await sendControl({ v: 1, type: "text", id, body });
-    setThread((items) => [...items, { id, kind: "text", from: "me", body }]);
+    setThread((items) => [
+      ...items,
+      { id, kind: "text", from: "me", body, reactions: [] },
+    ]);
     setDraft("");
   }, [draft, sendControl]);
 
   const sendPhoto = useCallback(
     async (video: HTMLVideoElement) => {
       const sessionKey = sessionKeyRef.current;
-      if (!sessionKey) throw new Error("Nearby link is not ready.");
-      const plain = await captureFrameToJpeg(video);
-      setCameraMode(null);
-      const id = crypto.randomUUID();
-      const sealed = await encryptBytes(sessionKey, plain);
-      wipeBytes(plain);
-      await sendControl({
-        v: 1,
-        type: "photo-meta",
-        id,
-        mime: "image/jpeg",
-        byteLength: sealed.byteLength,
-        oneTime: true,
-      });
-      for (const frame of splitPhotoChunks(id, sealed)) {
-        await sendControl(frame);
+      if (!sessionKey) {
+        setError("Nearby link is not ready.");
+        return;
       }
-      wipeBytes(sealed);
-      await sendControl({ v: 1, type: "photo-end", id });
-      setThread((items) => [
-        ...items,
-        { id, kind: "photo", from: "me", state: "sent" },
-      ]);
+      try {
+        const plain = await captureFrameToJpeg(video);
+        setCameraMode(null);
+        const id = crypto.randomUUID();
+        const sealed = await encryptBytes(sessionKey, plain);
+        wipeBytes(plain);
+        await sendControl({
+          v: 1,
+          type: "photo-meta",
+          id,
+          mime: "image/jpeg",
+          byteLength: sealed.byteLength,
+          oneTime: true,
+        });
+        for (const frame of splitPhotoChunks(id, sealed)) {
+          await sendControl(frame);
+        }
+        wipeBytes(sealed);
+        await sendControl({ v: 1, type: "photo-end", id });
+        setThread((items) => [
+          ...items,
+          { id, kind: "photo", from: "me", state: "sent", reactions: [] },
+        ]);
+      } catch (err) {
+        setCameraMode(null);
+        setError(
+          err instanceof Error
+            ? err.message
+            : "Could not send that photo. Try again.",
+        );
+      }
     },
     [sendControl],
   );
@@ -459,6 +497,30 @@ export function useHomeChat(displayName: string) {
     [joinWithInvite],
   );
 
+  const sendReaction = useCallback(
+    async (id: string, emoji: string) => {
+      const item = thread.find((row) => row.id === id);
+      if (!item) return;
+      const mine = item.reactions.find((row) => row.from === "me");
+      const nextEmoji = mine?.emoji === emoji ? "" : emoji;
+      setThread((items) =>
+        items.map((row) =>
+          row.id === id
+            ? { ...row, reactions: upsertReaction(row.reactions, "me", nextEmoji) }
+            : row,
+        ),
+      );
+      try {
+        await sendControl({ v: 1, type: "react", id, emoji: nextEmoji });
+      } catch (err) {
+        setError(
+          err instanceof Error ? err.message : "Could not send that reaction.",
+        );
+      }
+    },
+    [sendControl, thread],
+  );
+
   const joinFromBluetooth = useCallback(async () => {
     setError(null);
     try {
@@ -496,6 +558,7 @@ export function useHomeChat(displayName: string) {
     hangUp,
     sendText,
     sendPhoto,
+    sendReaction,
     openPhoto,
     closePhoto,
     scanFrame,

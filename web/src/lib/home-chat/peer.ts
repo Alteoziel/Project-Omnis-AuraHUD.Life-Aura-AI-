@@ -91,7 +91,18 @@ export class HomeChatPeer {
     if (!this.channel || this.channel.readyState !== "open") {
       throw new Error("Nearby link is not connected yet.");
     }
+    const advertisedMax = (this.channel as RTCDataChannel & { maxMessageSize?: number })
+      .maxMessageSize;
+    const max = typeof advertisedMax === "number" && advertisedMax > 0 ? advertisedMax : 16_384;
+    if (new TextEncoder().encode(text).byteLength > max) {
+      throw new Error("That photo is too large for this nearby link.");
+    }
     this.channel.send(text);
+  }
+
+  async sendWhenReady(text: string): Promise<void> {
+    await this.waitForBuffer();
+    this.send(text);
   }
 
   async close(): Promise<void> {
@@ -113,6 +124,7 @@ export class HomeChatPeer {
 
   private bindDataChannel(channel: RTCDataChannel): void {
     this.channel = channel;
+    channel.bufferedAmountLowThreshold = 32_000;
     channel.addEventListener("message", (event) => {
       if (typeof event.data === "string") {
         this.handlers.onMessage(event.data);
@@ -120,6 +132,26 @@ export class HomeChatPeer {
     });
     channel.addEventListener("open", () => {
       this.handlers.onState("channel-open");
+    });
+  }
+
+  private waitForBuffer(): Promise<void> {
+    const channel = this.channel;
+    if (!channel || channel.readyState !== "open") {
+      return Promise.reject(new Error("Nearby link is not connected yet."));
+    }
+    if (channel.bufferedAmount < 96_000) return Promise.resolve();
+    return new Promise((resolve, reject) => {
+      const timer = window.setTimeout(() => {
+        channel.removeEventListener("bufferedamountlow", onLow);
+        reject(new Error("Nearby link is busy. Try the photo again."));
+      }, 8_000);
+      const onLow = () => {
+        window.clearTimeout(timer);
+        channel.removeEventListener("bufferedamountlow", onLow);
+        resolve();
+      };
+      channel.addEventListener("bufferedamountlow", onLow);
     });
   }
 
