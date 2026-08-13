@@ -12,10 +12,13 @@ import {
   encryptText,
   exportPublicKeyB64,
   generateHomeChatKeyPair,
+  generatePhotoKey,
+  importPhotoKey,
   importPublicKeyB64,
   pairingFingerprint,
   wipeBytes,
   bytesToB64Url,
+  b64UrlToBytes,
 } from "@/lib/home-chat/crypto";
 import { encodeHomeChatInvite, parseHomeChatInvite } from "@/lib/home-chat/invite";
 import {
@@ -38,6 +41,7 @@ import {
   normalizeReactionEmoji,
   upsertReaction,
 } from "@/lib/home-chat/reactions";
+import { deriveHomeChatRatchet } from "@/lib/home-chat/ratchet";
 import { shouldCloseOpenPhotoOnLeave } from "@/lib/home-chat/store";
 
 async function main() {
@@ -85,12 +89,24 @@ async function main() {
 
   const chunks = splitPhotoChunks("photo-1", photoSealed);
   assert.ok(chunks.length >= 2);
+  const hostRatchet = await deriveHomeChatRatchet({
+    privateKey: alice.privateKey,
+    peerPublicKey: await importPublicKeyB64(bobPub),
+    role: "host",
+  });
+  const guestRatchet = await deriveHomeChatRatchet({
+    privateKey: bob.privateKey,
+    peerPublicKey: await importPublicKeyB64(alicePub),
+    role: "guest",
+  });
   for (const frame of chunks) {
-    const wire = bytesToB64Url(await encryptText(aliceKey, frame));
+    const wire = bytesToB64Url(await hostRatchet.sealText(frame));
     assert.ok(
       wire.length * 2 < 12_000,
       "base64 photo frame must fit Safari's UTF-16 data-channel cap",
     );
+    const opened = await guestRatchet.openText(b64UrlToBytes(wire));
+    assert.equal(opened, frame);
   }
   const byIndex = new Map<number, Uint8Array>();
   for (const frame of chunks) {
@@ -225,6 +241,80 @@ async function main() {
   assert.equal(shouldCloseOpenPhotoOnLeave("visibilitychange", "visible"), false);
   assert.equal(shouldCloseOpenPhotoOnLeave("pagehide", "visible"), true);
   assert.equal(shouldCloseOpenPhotoOnLeave("blur", "visible"), false);
+
+  const host = await deriveHomeChatRatchet({
+    privateKey: alice.privateKey,
+    peerPublicKey: await importPublicKeyB64(bobPub),
+    role: "host",
+  });
+  const guest = await deriveHomeChatRatchet({
+    privateKey: bob.privateKey,
+    peerPublicKey: await importPublicKeyB64(alicePub),
+    role: "guest",
+  });
+  const hello = await host.sealText("hello-1");
+  const reply = await guest.sealText("hello-2");
+  assert.equal(await guest.openText(hello), "hello-1");
+  assert.equal(await host.openText(reply), "hello-2");
+  const third = await host.sealText("hello-3");
+  assert.equal(await guest.openText(third), "hello-3");
+  const firstKey = hello.slice();
+  await assert.rejects(() => guest.open(firstKey));
+
+  const skipHost = await deriveHomeChatRatchet({
+    privateKey: alice.privateKey,
+    peerPublicKey: await importPublicKeyB64(bobPub),
+    role: "host",
+  });
+  const skipGuest = await deriveHomeChatRatchet({
+    privateKey: bob.privateKey,
+    peerPublicKey: await importPublicKeyB64(alicePub),
+    role: "guest",
+  });
+  const skip0 = await skipHost.sealText("a");
+  assert.equal(await skipGuest.openText(skip0), "a");
+  await skipHost.sealText("b");
+  const skip2 = await skipHost.sealText("c");
+  assert.equal(await skipGuest.openText(skip2), "c");
+
+  const { key: photoKey, raw: photoRaw } = await generatePhotoKey();
+  const photoInner = await encryptBytes(photoKey, photo);
+  const imported = await importPhotoKey(photoRaw);
+  wipeBytes(photoRaw);
+  const photoPlain = await decryptBytes(imported, photoInner);
+  assert.deepEqual(Array.from(photoPlain.slice(0, 16)), Array.from(photo.slice(0, 16)));
+  const meta = parseControl(
+    JSON.stringify({
+      v: 1,
+      type: "photo-meta",
+      id: "p1",
+      mime: "image/jpeg",
+      byteLength: 8,
+      oneTime: true,
+      key: "abc",
+    }),
+  );
+  assert.equal(meta?.type, "photo-meta");
+  if (meta?.type === "photo-meta") assert.equal(meta.key, "abc");
+  assert.throws(() =>
+    parseControl(
+      JSON.stringify({
+        v: 1,
+        type: "photo-meta",
+        id: "p1",
+        mime: "image/jpeg",
+        byteLength: 8,
+        oneTime: true,
+      }),
+    ),
+  );
+
+  host.wipe();
+  guest.wipe();
+  skipHost.wipe();
+  skipGuest.wipe();
+  hostRatchet.wipe();
+  guestRatchet.wipe();
 
   console.log("home-chat.test.ts: ok");
 }

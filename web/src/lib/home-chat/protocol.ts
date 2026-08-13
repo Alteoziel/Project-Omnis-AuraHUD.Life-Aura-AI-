@@ -21,6 +21,7 @@ export type ControlMessage =
       mime: "image/jpeg";
       byteLength: number;
       oneTime: true;
+      key: string;
     }
   | { v: 1; type: "photo-end"; id: string }
   | { v: 1; type: "viewed"; id: string }
@@ -66,6 +67,12 @@ export function parseControl(raw: string): ControlMessage | null {
       throw new Error("Reaction is too long.");
     }
     return { v: 1, type: "react", id: parsed.id, emoji };
+  }
+  if (parsed.type === "photo-meta") {
+    const key = "key" in parsed ? parsed.key : null;
+    if (typeof parsed.id !== "string" || !parsed.id || typeof key !== "string" || !key) {
+      throw new Error("Photo is missing its one-time key.");
+    }
   }
   return parsed as ControlMessage;
 }
