@@ -110,7 +110,7 @@ export function InAppCamera({
         <p className="rounded-full bg-ink-950/55 px-3 py-1 text-xs font-bold text-sand-50">
           {mode === "photo"
             ? busy
-              ? "Sending photo…"
+              ? "Queuing photo…"
               : "In-app camera · not saved to Photos"
             : "Point at a Home Chat code"}
         </p>
@@ -165,7 +165,7 @@ export function InAppCamera({
                   ? "Switching camera…"
                   : "Starting camera…"
                 : busy
-                  ? "Sending…"
+                  ? "Queuing…"
                   : facing === "user"
                     ? "Front camera · tap to send"
                     : "Tap to send a one-time photo"}

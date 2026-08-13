@@ -8,6 +8,7 @@ import {
   decryptBytes,
   decryptText,
   deriveSessionKey,
+  derivePhotoWrapKey,
   encryptBytes,
   encryptText,
   exportPublicKeyB64,
@@ -25,6 +26,7 @@ import {
   assemblePhotoChunks,
   describeHomeChatError,
   isHomeChatQuotaError,
+  MAX_QUEUED_PHOTOS,
   parseControl,
   parsePhotoChunk,
   splitPhotoChunks,
@@ -42,7 +44,11 @@ import {
   upsertReaction,
 } from "@/lib/home-chat/reactions";
 import { deriveHomeChatRatchet } from "@/lib/home-chat/ratchet";
-import { shouldCloseOpenPhotoOnLeave } from "@/lib/home-chat/store";
+import {
+  consumeOneTimePhoto,
+  saveSealedPhoto,
+  shouldCloseOpenPhotoOnLeave,
+} from "@/lib/home-chat/store";
 
 async function main() {
   const fixed = new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8]);
@@ -312,6 +318,43 @@ async function main() {
       }),
     ),
   );
+
+  assert.ok(MAX_QUEUED_PHOTOS >= 5 && MAX_QUEUED_PHOTOS <= 10);
+
+  const wrapA = await derivePhotoWrapKey(
+    alice.privateKey,
+    await importPublicKeyB64(bobPub),
+  );
+  const wrapB = await derivePhotoWrapKey(
+    bob.privateKey,
+    await importPublicKeyB64(alicePub),
+  );
+  const photoKeyRaw = crypto.getRandomValues(new Uint8Array(32));
+  const wrapped = await encryptBytes(wrapA, photoKeyRaw);
+  const openedKey = await decryptBytes(wrapB, wrapped);
+  assert.deepEqual(Array.from(openedKey), Array.from(photoKeyRaw));
+
+  const jpeg = new Uint8Array(64);
+  crypto.getRandomValues(jpeg);
+  const { key: innerKey, raw: innerRaw } = await generatePhotoKey();
+  const innerSealed = await encryptBytes(innerKey, jpeg);
+  await saveSealedPhoto({
+    id: "sealed-1",
+    roomId: "room-1",
+    sealed: innerSealed,
+    keyRaw: innerRaw,
+    wrapKey: wrapA,
+  });
+  wipeBytes(innerRaw);
+  const mallory = await generateHomeChatKeyPair();
+  const badWrap = await derivePhotoWrapKey(
+    mallory.privateKey,
+    await importPublicKeyB64(alicePub),
+  );
+  await assert.rejects(() => consumeOneTimePhoto("sealed-1", badWrap));
+  const viewed = await consumeOneTimePhoto("sealed-1", wrapA);
+  assert.deepEqual(Array.from(viewed ?? []), Array.from(jpeg));
+  assert.equal(await consumeOneTimePhoto("sealed-1", wrapA), null);
 
   host.wipe();
   guest.wipe();

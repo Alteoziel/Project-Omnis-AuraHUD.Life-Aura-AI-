@@ -1,8 +1,14 @@
-import { bytesToArrayBuffer, wipeBytes } from "@/lib/home-chat/crypto";
+import {
+  bytesToArrayBuffer,
+  decryptBytes,
+  encryptBytes,
+  importPhotoKey,
+  wipeBytes,
+} from "@/lib/home-chat/crypto";
 import { isHomeChatQuotaError } from "@/lib/home-chat/protocol";
 
 const DB_NAME = "alte-home-chat";
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 const PHOTO_STORE = "one-time-photos";
 
 export type StoredOneTimePhoto = {
@@ -10,11 +16,13 @@ export type StoredOneTimePhoto = {
   roomId: string;
   createdAt: string;
   mime: "image/jpeg";
-  bytes: Uint8Array;
+  sealed: Uint8Array;
+  wrap: Uint8Array;
 };
 
-type StoredPhotoRow = Omit<StoredOneTimePhoto, "bytes"> & {
-  bytes: ArrayBuffer | Uint8Array;
+type StoredPhotoRow = Omit<StoredOneTimePhoto, "sealed" | "wrap"> & {
+  sealed: ArrayBuffer | Uint8Array;
+  wrap: ArrayBuffer | Uint8Array;
 };
 
 const memoryPhotos = new Map<string, StoredOneTimePhoto>();
@@ -24,9 +32,10 @@ function openDb(): Promise<IDBDatabase> {
     const request = indexedDB.open(DB_NAME, DB_VERSION);
     request.onupgradeneeded = () => {
       const db = request.result;
-      if (!db.objectStoreNames.contains(PHOTO_STORE)) {
-        db.createObjectStore(PHOTO_STORE, { keyPath: "id" });
+      if (db.objectStoreNames.contains(PHOTO_STORE)) {
+        db.deleteObjectStore(PHOTO_STORE);
       }
+      db.createObjectStore(PHOTO_STORE, { keyPath: "id" });
     };
     request.onsuccess = () => resolve(request.result);
     request.onerror = () =>
@@ -56,9 +65,17 @@ function coerceBytes(value: unknown): Uint8Array | null {
 
 function fromRow(row: StoredPhotoRow | undefined | null): StoredOneTimePhoto | null {
   if (!row) return null;
-  const bytes = coerceBytes(row.bytes);
-  if (!bytes) return null;
-  return { id: row.id, roomId: row.roomId, createdAt: row.createdAt, mime: row.mime, bytes };
+  const sealed = coerceBytes(row.sealed);
+  const wrap = coerceBytes(row.wrap);
+  if (!sealed || !wrap) return null;
+  return {
+    id: row.id,
+    roomId: row.roomId,
+    createdAt: row.createdAt,
+    mime: row.mime,
+    sealed,
+    wrap,
+  };
 }
 
 /**
@@ -74,110 +91,151 @@ export function shouldCloseOpenPhotoOnLeave(
   return eventType === "visibilitychange" && visibilityState === "hidden";
 }
 
-export async function saveOneTimePhoto(
-  photo: StoredOneTimePhoto,
-): Promise<void> {
-  memoryPhotos.set(photo.id, {
-    ...photo,
-    bytes: photo.bytes.slice(),
-  });
-  const db = await openDb();
+export async function saveSealedPhoto(input: {
+  id: string;
+  roomId: string;
+  sealed: Uint8Array;
+  keyRaw: Uint8Array;
+  wrapKey: CryptoKey;
+}): Promise<void> {
+  const wrap = await encryptBytes(input.wrapKey, input.keyRaw);
+  const photo: StoredOneTimePhoto = {
+    id: input.id,
+    roomId: input.roomId,
+    createdAt: new Date().toISOString(),
+    mime: "image/jpeg",
+    sealed: input.sealed.slice(),
+    wrap,
+  };
+  memoryPhotos.set(photo.id, photo);
   try {
-    await reqToPromise(
-      db.transaction(PHOTO_STORE, "readwrite").objectStore(PHOTO_STORE).put({
-        id: photo.id,
-        roomId: photo.roomId,
-        createdAt: photo.createdAt,
-        mime: photo.mime,
-        bytes: bytesToArrayBuffer(photo.bytes),
-      } satisfies StoredPhotoRow),
-    );
-  } catch (err) {
-    if (isHomeChatQuotaError(err)) {
-      // Keep the photo in memory for this session if IndexedDB is full.
-      return;
+    const db = await openDb();
+    try {
+      await reqToPromise(
+        db.transaction(PHOTO_STORE, "readwrite").objectStore(PHOTO_STORE).put({
+          id: photo.id,
+          roomId: photo.roomId,
+          createdAt: photo.createdAt,
+          mime: photo.mime,
+          sealed: bytesToArrayBuffer(photo.sealed),
+          wrap: bytesToArrayBuffer(photo.wrap),
+        } satisfies StoredPhotoRow),
+      );
+    } catch (err) {
+      if (isHomeChatQuotaError(err)) return;
+      throw err;
+    } finally {
+      db.close();
     }
-    throw err;
-  } finally {
-    db.close();
+  } catch (err) {
+    if (isHomeChatQuotaError(err)) return;
+    // Private mode / IndexedDB missing: keep the sealed copy in RAM for this chat.
   }
 }
 
-export async function readOneTimePhoto(
-  id: string,
-): Promise<StoredOneTimePhoto | null> {
+async function readSealedPhoto(id: string): Promise<StoredOneTimePhoto | null> {
   const cached = memoryPhotos.get(id);
   if (cached) return cached;
-  const db = await openDb();
   try {
-    const value = await reqToPromise(
-      db.transaction(PHOTO_STORE, "readonly").objectStore(PHOTO_STORE).get(id),
-    );
-    return fromRow(value as StoredPhotoRow | undefined);
-  } finally {
-    db.close();
+    const db = await openDb();
+    try {
+      const value = await reqToPromise(
+        db.transaction(PHOTO_STORE, "readonly").objectStore(PHOTO_STORE).get(id),
+      );
+      return fromRow(value as StoredPhotoRow | undefined);
+    } finally {
+      db.close();
+    }
+  } catch {
+    return null;
   }
 }
 
-/** Overwrite bytes, then delete the record so a viewed photo cannot be reopened. */
-export async function consumeOneTimePhoto(id: string): Promise<Uint8Array | null> {
-  const stored = await readOneTimePhoto(id);
+/** Decrypt only when the user opens the photo, then overwrite and delete. */
+export async function consumeOneTimePhoto(
+  id: string,
+  wrapKey: CryptoKey,
+): Promise<Uint8Array | null> {
+  const stored = await readSealedPhoto(id);
   if (!stored) return null;
-  const copy = stored.bytes.slice();
-  wipeBytes(stored.bytes);
-  memoryPhotos.delete(id);
-  const db = await openDb();
+  let keyRaw: Uint8Array | null = null;
   try {
-    const tx = db.transaction(PHOTO_STORE, "readwrite");
-    tx.objectStore(PHOTO_STORE).put({
-      ...stored,
-      bytes: bytesToArrayBuffer(stored.bytes),
-    } satisfies StoredPhotoRow);
-    await reqToPromise(tx.objectStore(PHOTO_STORE).delete(id));
-  } catch {
-    // Memory copy is already wiped; ignore storage failures on consume.
+    keyRaw = await decryptBytes(wrapKey, stored.wrap);
+    const photoKey = await importPhotoKey(keyRaw);
+    const plain = await decryptBytes(photoKey, stored.sealed);
+    wipeBytes(stored.sealed);
+    wipeBytes(stored.wrap);
+    memoryPhotos.delete(id);
+    try {
+      const db = await openDb();
+      try {
+        await reqToPromise(
+          db.transaction(PHOTO_STORE, "readwrite").objectStore(PHOTO_STORE).delete(id),
+        );
+      } catch {
+        // Memory copy is already wiped; ignore storage failures on consume.
+      } finally {
+        db.close();
+      }
+    } catch {
+      // IndexedDB unavailable; RAM copy is already gone.
+    }
+    return plain;
   } finally {
-    db.close();
+    if (keyRaw) wipeBytes(keyRaw);
   }
-  return copy;
 }
 
 export async function deleteOneTimePhoto(id: string): Promise<void> {
-  const stored = await readOneTimePhoto(id);
-  if (stored) wipeBytes(stored.bytes);
+  const stored = await readSealedPhoto(id);
+  if (stored) {
+    wipeBytes(stored.sealed);
+    wipeBytes(stored.wrap);
+  }
   memoryPhotos.delete(id);
-  const db = await openDb();
   try {
-    await reqToPromise(
-      db.transaction(PHOTO_STORE, "readwrite").objectStore(PHOTO_STORE).delete(id),
-    );
-  } finally {
-    db.close();
+    const db = await openDb();
+    try {
+      await reqToPromise(
+        db.transaction(PHOTO_STORE, "readwrite").objectStore(PHOTO_STORE).delete(id),
+      );
+    } finally {
+      db.close();
+    }
+  } catch {
+    // IndexedDB unavailable; RAM copy is already gone.
   }
 }
 
 export async function purgeHomeChatPhotos(roomId?: string): Promise<void> {
   for (const [id, photo] of memoryPhotos) {
     if (roomId && photo.roomId !== roomId) continue;
-    wipeBytes(photo.bytes);
+    wipeBytes(photo.sealed);
+    wipeBytes(photo.wrap);
     memoryPhotos.delete(id);
   }
-  const db = await openDb();
   try {
-    const tx = db.transaction(PHOTO_STORE, "readwrite");
-    const store = tx.objectStore(PHOTO_STORE);
-    const all = await reqToPromise(store.getAll());
-    for (const row of all as StoredPhotoRow[]) {
-      if (roomId && row.roomId !== roomId) continue;
-      const bytes = coerceBytes(row.bytes);
-      if (bytes) wipeBytes(bytes);
-      store.delete(row.id);
+    const db = await openDb();
+    try {
+      const tx = db.transaction(PHOTO_STORE, "readwrite");
+      const store = tx.objectStore(PHOTO_STORE);
+      const all = await reqToPromise(store.getAll());
+      for (const row of all as StoredPhotoRow[]) {
+        if (roomId && row.roomId !== roomId) continue;
+        const sealed = coerceBytes(row.sealed);
+        const wrap = coerceBytes(row.wrap);
+        if (sealed) wipeBytes(sealed);
+        if (wrap) wipeBytes(wrap);
+        store.delete(row.id);
+      }
+      await new Promise<void>((resolve, reject) => {
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error ?? new Error("Purge failed."));
+      });
+    } finally {
+      db.close();
     }
-    await new Promise<void>((resolve, reject) => {
-      tx.oncomplete = () => resolve();
-      tx.onerror = () => reject(tx.error ?? new Error("Purge failed."));
-    });
-  } finally {
-    db.close();
+  } catch {
+    // IndexedDB unavailable; RAM copies are already wiped.
   }
 }

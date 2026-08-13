@@ -1,6 +1,8 @@
 const CURVE = { name: "ECDH", namedCurve: "P-256" } as const;
 const HKDF_SALT = new TextEncoder().encode("aurahud-home-chat-v1");
 const HKDF_INFO = new TextEncoder().encode("aes-256-gcm");
+const WRAP_SALT = new TextEncoder().encode("aurahud-home-chat-wrap-v1");
+const WRAP_INFO = new TextEncoder().encode("photo-wrap");
 const GCM_IV_LENGTH = 12;
 const VERSION = 1;
 
@@ -74,6 +76,42 @@ export async function deriveSessionKey(
     false,
     ["encrypt", "decrypt"],
   );
+}
+
+export async function derivePhotoWrapKey(
+  privateKey: CryptoKey,
+  peerPublicKey: CryptoKey,
+): Promise<CryptoKey> {
+  const bits = new Uint8Array(
+    await crypto.subtle.deriveBits(
+      { name: "ECDH", public: peerPublicKey },
+      privateKey,
+      256,
+    ),
+  );
+  try {
+    const ikm = await crypto.subtle.importKey(
+      "raw",
+      bytesToArrayBuffer(bits),
+      "HKDF",
+      false,
+      ["deriveKey"],
+    );
+    return await crypto.subtle.deriveKey(
+      {
+        name: "HKDF",
+        hash: "SHA-256",
+        salt: WRAP_SALT,
+        info: WRAP_INFO,
+      },
+      ikm,
+      { name: "AES-GCM", length: 256 },
+      false,
+      ["encrypt", "decrypt"],
+    );
+  } finally {
+    wipeBytes(bits);
+  }
 }
 
 export async function encryptBytes(

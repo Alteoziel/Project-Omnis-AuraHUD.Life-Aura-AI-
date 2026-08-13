@@ -6,6 +6,7 @@ export const HOME_CHAT_PROTOCOL_VERSION = 1;
 export const PHOTO_CHUNK_SIZE = 1_500;
 export const MAX_PHOTO_BYTES = 1_200_000;
 export const MAX_TEXT_CHARS = 2_000;
+export const MAX_QUEUED_PHOTOS = 8;
 /** iPhone data channels often cap one message — and the whole send buffer — at 16KiB. */
 export const MAX_DATA_CHANNEL_BYTES = 12_000;
 
