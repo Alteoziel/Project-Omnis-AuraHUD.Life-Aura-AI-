@@ -123,7 +123,7 @@ export function ChatBubble({
         ) : item.state === "sending" ? (
           "Sending photo…"
         ) : item.state === "queued" ? (
-          "Waiting for a clear link…"
+          "Queued photo · waiting to send"
         ) : item.state === "receiving" ? (
           "Receiving photo…"
         ) : (

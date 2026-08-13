@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, type RefObject } from "react";
 import { ChatBubble } from "@/components/home-chat/ChatBubble";
 import { InAppCamera } from "@/components/home-chat/InAppCamera";
 import { LinkPathPanel } from "@/components/home-chat/LinkPathPanel";
+import { PhotoSendQueueStrip } from "@/components/home-chat/PhotoSendQueueStrip";
 import { OneTimePhotoViewer } from "@/components/home-chat/OneTimePhotoViewer";
 import { useHomeChat } from "@/components/home-chat/useHomeChat";
 import { isHomeChatCode, normalizeHomeChatCode } from "@/lib/home-chat/codes";
@@ -97,6 +98,7 @@ export function HomeChatApp({ displayName }: { displayName: string }) {
           setDraft={chat.setDraft}
           onSend={() => void chat.sendText()}
           onPhoto={() => chat.setCameraMode("photo")}
+          canQueuePhoto={chat.canQueuePhoto}
           onOpenPhoto={(id) => void chat.openPhoto(id)}
           onReact={(id, emoji) => void chat.sendReaction(id, emoji)}
           linkReport={chat.linkReport}
@@ -154,7 +156,8 @@ function IdlePanel({
         <p className="text-sm text-ink-700">
           Pair while you’re next to each other, then send texts and one-time
           photos over an encrypted nearby link. The in-app camera never writes
-          to the iPhone Photos library. Opened photos are wiped.
+          to the iPhone Photos library. Received photos stay encrypted on this
+          phone until you tap to view them; opened photos are wiped.
         </p>
         <p className="mt-3 text-xs text-ink-600">
           {bluetoothSupported
@@ -270,6 +273,7 @@ function ChatPanel({
   setDraft,
   onSend,
   onPhoto,
+  canQueuePhoto,
   onOpenPhoto,
   onReact,
   linkReport,
@@ -283,6 +287,7 @@ function ChatPanel({
   setDraft: (value: string) => void;
   onSend: () => void;
   onPhoto: () => void;
+  canQueuePhoto: boolean;
   onOpenPhoto: (id: string) => void;
   onReact: (id: string, emoji: string) => void;
   linkReport: ReturnType<typeof useHomeChat>["linkReport"];
@@ -290,8 +295,6 @@ function ChatPanel({
   fingerprint: string | null;
   photoSendQueue: ReturnType<typeof useHomeChat>["photoSendQueue"];
 }) {
-  const waiting = photoSendQueue.filter((item) => item.state === "queued").length;
-  const sending = photoSendQueue.some((item) => item.state === "sending");
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <LinkPathPanel
@@ -299,17 +302,7 @@ function ChatPanel({
         screenWatch={screenWatch}
         fingerprint={fingerprint}
       />
-      {photoSendQueue.length > 0 ? (
-        <p className="border-b border-ink-900/10 bg-moss-500/15 px-4 py-2 text-xs font-semibold text-ink-800">
-          {sending
-            ? waiting > 0
-              ? `Sending a photo · ${waiting} waiting for a clear link`
-              : "Sending photo · waiting for a clear link"
-            : waiting === 1
-              ? "1 photo waiting for a clear link"
-              : `${waiting} photos waiting for a clear link`}
-        </p>
-      ) : null}
+      <PhotoSendQueueStrip items={photoSendQueue} />
       <ul
         ref={scrollerRef}
         className="flex-1 space-y-2 overflow-y-auto px-4 py-3"
@@ -338,9 +331,11 @@ function ChatPanel({
         <button
           type="button"
           onClick={onPhoto}
-          className="rounded-xl bg-sand-100 px-3 py-3 text-sm font-bold text-ink-800"
+          disabled={!canQueuePhoto}
+          aria-label={canQueuePhoto ? "Take a photo" : "Photo queue is full"}
+          className="rounded-xl bg-sand-100 px-3 py-3 text-sm font-bold text-ink-800 disabled:opacity-40"
         >
-          Photo
+          {canQueuePhoto ? "Photo" : "Queue full"}
         </button>
         <input
           value={draft}

@@ -6,12 +6,12 @@ import {
   getBluetoothCapability,
   requestNearbyHomeChatDevice,
 } from "@/lib/home-chat/bluetooth";
-import { captureFrameToJpeg } from "@/lib/home-chat/camera";
+import { grabCameraFrame } from "@/lib/home-chat/camera";
 import { generateHomeChatCode, isHomeChatCode, normalizeHomeChatCode } from "@/lib/home-chat/codes";
 import {
   b64UrlToBytes,
   bytesToB64Url,
-  decryptBytes,
+  derivePhotoWrapKey,
   encryptBytes,
   exportPublicKeyB64,
   generateHomeChatKeyPair,
@@ -31,6 +31,7 @@ import {
   describeHomeChatError,
   encodeControl,
   isControlRaw,
+  MAX_QUEUED_PHOTOS,
   MAX_TEXT_CHARS,
   parseControl,
   parsePhotoChunk,
@@ -51,7 +52,7 @@ import {
 import {
   consumeOneTimePhoto,
   purgeHomeChatPhotos,
-  saveOneTimePhoto,
+  saveSealedPhoto,
 } from "@/lib/home-chat/store";
 
 export type ChatPhase = "idle" | "hosting" | "joining" | "connecting" | "chat";
@@ -69,19 +70,20 @@ export type ThreadItem =
       kind: "photo";
       from: "me" | "them";
       state: "ready" | "removed" | "sent" | "receiving" | "sending" | "queued";
+      previewUrl?: string;
       reactions: ChatReaction[];
     };
 
 type PhotoAssembler = {
   total: number;
   chunks: Map<number, Uint8Array>;
-  key: CryptoKey | null;
+  keyRaw: Uint8Array | null;
 };
 
 type QueuedPhoto = {
   id: string;
   sealed: Uint8Array;
-  keyB64: string;
+  keyRaw: Uint8Array;
 };
 
 export function useHomeChat(displayName: string) {
@@ -108,6 +110,7 @@ export function useHomeChat(displayName: string) {
   const keysRef = useRef<HomeChatKeyPair | null>(null);
   const myPublicKeyRef = useRef<string | null>(null);
   const ratchetRef = useRef<HomeChatRatchet | null>(null);
+  const wrapKeyRef = useRef<CryptoKey | null>(null);
   const peerRef = useRef<HomeChatPeer | null>(null);
   const roomIdRef = useRef<string | null>(null);
   const roleRef = useRef<"host" | "guest" | null>(null);
@@ -117,6 +120,7 @@ export function useHomeChat(displayName: string) {
   const ingestLockRef = useRef(Promise.resolve());
   const photoQueueRef = useRef<QueuedPhoto[]>([]);
   const pumpingPhotosRef = useRef(false);
+  const preparingPhotosRef = useRef(0);
   const pumpOutgoingPhotosRef = useRef<() => Promise<void>>(async () => {});
   const stopAdvertiseRef = useRef<(() => void) | null>(null);
   const guestWaitRef = useRef<number | null>(null);
@@ -151,11 +155,20 @@ export function useHomeChat(displayName: string) {
     roleRef.current = null;
     ratchetRef.current?.wipe();
     ratchetRef.current = null;
+    wrapKeyRef.current = null;
+    for (const assembler of assemblersRef.current.values()) {
+      if (assembler.keyRaw) wipeBytes(assembler.keyRaw);
+      for (const part of assembler.chunks.values()) wipeBytes(part);
+    }
     assemblersRef.current.clear();
     pendingRef.current = [];
-    for (const job of photoQueueRef.current) wipeBytes(job.sealed);
+    for (const job of photoQueueRef.current) {
+      wipeBytes(job.sealed);
+      wipeBytes(job.keyRaw);
+    }
     photoQueueRef.current = [];
     pumpingPhotosRef.current = false;
+    preparingPhotosRef.current = 0;
     const viewing = viewingPhotoRef.current;
     viewingPhotoRef.current = null;
     if (viewing) wipeBytes(viewing.bytes);
@@ -239,6 +252,7 @@ export function useHomeChat(displayName: string) {
         peerPublicKey: imported,
         role,
       });
+      wrapKeyRef.current = await derivePhotoWrapKey(keys.privateKey, imported);
       setFingerprint(await pairingFingerprint(publicKey, peerPublicKey));
     },
     [ensureKeys],
@@ -258,17 +272,19 @@ export function useHomeChat(displayName: string) {
     }
     if (message.type === "photo-meta") {
       const raw = b64UrlToBytes(message.key);
-      let key: CryptoKey;
       try {
-        key = await importPhotoKey(raw);
-      } finally {
+        await importPhotoKey(raw);
+      } catch {
         wipeBytes(raw);
+        setError("A photo arrived with a bad key. Ask them to send it again.");
+        return;
       }
       const existing = assemblersRef.current.get(message.id);
+      if (existing?.keyRaw) wipeBytes(existing.keyRaw);
       assemblersRef.current.set(message.id, {
         total: existing?.total ?? 0,
         chunks: existing?.chunks ?? new Map(),
-        key,
+        keyRaw: raw,
       });
       setThread((items) =>
         items.some((item) => item.id === message.id)
@@ -283,7 +299,13 @@ export function useHomeChat(displayName: string) {
     if (message.type === "photo-end") {
       const assembler = assemblersRef.current.get(message.id);
       const roomId = roomIdRef.current;
-      if (!assembler || !roomId || !assembler.key) {
+      const wrapKey = wrapKeyRef.current;
+      if (!assembler || !roomId || !assembler.keyRaw || !wrapKey) {
+        if (assembler?.keyRaw) wipeBytes(assembler.keyRaw);
+        if (assembler) {
+          for (const part of assembler.chunks.values()) wipeBytes(part);
+          assemblersRef.current.delete(message.id);
+        }
         setError("A photo arrived incomplete. Ask them to send it again.");
         return;
       }
@@ -292,16 +314,15 @@ export function useHomeChat(displayName: string) {
         const sealed = assemblePhotoChunks(total, assembler.chunks);
         for (const part of assembler.chunks.values()) wipeBytes(part);
         assemblersRef.current.delete(message.id);
-        const plain = await decryptBytes(assembler.key, sealed);
-        wipeBytes(sealed);
-        await saveOneTimePhoto({
+        await saveSealedPhoto({
           id: message.id,
           roomId,
-          createdAt: new Date().toISOString(),
-          mime: "image/jpeg",
-          bytes: plain,
+          sealed,
+          keyRaw: assembler.keyRaw,
+          wrapKey,
         });
-        wipeBytes(plain);
+        wipeBytes(sealed);
+        wipeBytes(assembler.keyRaw);
         setThread((items) => {
           const next = items.filter((item) => item.id !== message.id);
           return [
@@ -310,6 +331,8 @@ export function useHomeChat(displayName: string) {
           ];
         });
       } catch (err) {
+        if (assembler.keyRaw) wipeBytes(assembler.keyRaw);
+        for (const part of assembler.chunks.values()) wipeBytes(part);
         assemblersRef.current.delete(message.id);
         setThread((items) => items.filter((item) => item.id !== message.id));
         setError(
@@ -365,7 +388,7 @@ export function useHomeChat(displayName: string) {
             const assembler = assemblersRef.current.get(parsed.header.id) ?? {
               total: parsed.header.total,
               chunks: new Map(),
-              key: null,
+              keyRaw: null,
             };
             assembler.total = parsed.header.total;
             assembler.chunks.set(parsed.header.index, parsed.bytes);
@@ -437,8 +460,9 @@ export function useHomeChat(displayName: string) {
             mime: "image/jpeg",
             byteLength: job.sealed.byteLength,
             oneTime: true,
-            key: job.keyB64,
+            key: bytesToB64Url(job.keyRaw),
           });
+          wipeBytes(job.keyRaw);
           for (const frame of splitPhotoChunks(job.id, job.sealed)) {
             if (hangingUpRef.current || !peerRef.current?.connected) {
               throw new Error("Nearby link is not connected yet.");
@@ -451,7 +475,7 @@ export function useHomeChat(displayName: string) {
           setThread((items) =>
             items.map((item) =>
               item.id === job.id && item.kind === "photo"
-                ? { ...item, state: "sent" }
+                ? { ...item, state: "sent", previewUrl: undefined }
                 : item,
             ),
           );
@@ -459,6 +483,7 @@ export function useHomeChat(displayName: string) {
           const failed = photoQueueRef.current.shift();
           if (failed) {
             wipeBytes(failed.sealed);
+            wipeBytes(failed.keyRaw);
             setThread((items) => items.filter((item) => item.id !== failed.id));
           }
           if (!hangingUpRef.current && peerRef.current?.connected) {
@@ -632,39 +657,78 @@ export function useHomeChat(displayName: string) {
         setError("Nearby link is not ready.");
         return;
       }
-      const id = crypto.randomUUID();
-      setError(null);
+      const pending =
+        photoQueueRef.current.length + preparingPhotosRef.current;
+      if (pending >= MAX_QUEUED_PHOTOS) {
+        setError(
+          `Photo queue is full (${MAX_QUEUED_PHOTOS}). Wait for one to send, then take another.`,
+        );
+        return;
+      }
+      let grabbed;
       try {
-        const plain = await captureFrameToJpeg(video);
-        const { key, raw } = await generatePhotoKey();
-        const sealed = await encryptBytes(key, plain);
-        wipeBytes(plain);
-        const keyB64 = bytesToB64Url(raw);
-        wipeBytes(raw);
-        photoQueueRef.current.push({ id, sealed, keyB64 });
-        setThread((items) => [
-          ...items,
-          {
-            id,
-            kind: "photo",
-            from: "me",
-            state: photoQueueRef.current.length > 1 || pumpingPhotosRef.current ? "queued" : "sending",
-            reactions: [],
-          },
-        ]);
-        setCameraMode(null);
-        void pumpOutgoingPhotos();
+        grabbed = grabCameraFrame(video);
       } catch (err) {
         setError(
-          describeHomeChatError(err, "Could not send that photo. Try again."),
+          describeHomeChatError(err, "Could not capture that photo. Try again."),
         );
+        return;
       }
+      const id = crypto.randomUUID();
+      setError(null);
+      preparingPhotosRef.current += 1;
+      setThread((items) => [
+        ...items,
+        {
+          id,
+          kind: "photo",
+          from: "me",
+          state: "queued",
+          reactions: [],
+          previewUrl: grabbed.previewUrl ?? undefined,
+        },
+      ]);
+      setCameraMode(null);
+
+      void (async () => {
+        try {
+          const plain = await grabbed.encodeJpeg();
+          if (hangingUpRef.current || !peerRef.current?.connected) {
+            wipeBytes(plain);
+            return;
+          }
+          const { key, raw } = await generatePhotoKey();
+          const sealed = await encryptBytes(key, plain);
+          wipeBytes(plain);
+          if (hangingUpRef.current || !peerRef.current?.connected) {
+            wipeBytes(sealed);
+            wipeBytes(raw);
+            return;
+          }
+          photoQueueRef.current.push({ id, sealed, keyRaw: raw });
+          void pumpOutgoingPhotos();
+        } catch (err) {
+          if (!hangingUpRef.current) {
+            setThread((items) => items.filter((item) => item.id !== id));
+            setError(
+              describeHomeChatError(err, "Could not send that photo. Try again."),
+            );
+          }
+        } finally {
+          preparingPhotosRef.current = Math.max(0, preparingPhotosRef.current - 1);
+        }
+      })();
     },
     [pumpOutgoingPhotos],
   );
 
   const openPhoto = useCallback(async (id: string) => {
-    const bytes = await consumeOneTimePhoto(id);
+    const wrapKey = wrapKeyRef.current;
+    if (!wrapKey) {
+      setError("That photo is still locked. Stay in this Home Chat to open it.");
+      return;
+    }
+    const bytes = await consumeOneTimePhoto(id, wrapKey);
     if (!bytes) {
       setThread((items) =>
         items.map((item) =>
@@ -778,12 +842,26 @@ export function useHomeChat(displayName: string) {
     joinWithInvite,
     joinFromBluetooth,
     fail: (message: string) => setError(message),
-    photoSendQueue: thread.filter(
-      (item): item is Extract<ThreadItem, { kind: "photo" }> =>
-        item.kind === "photo" &&
-        item.from === "me" &&
-        (item.state === "queued" || item.state === "sending"),
+    photoSendQueue: thread.flatMap((item) =>
+      item.kind === "photo" &&
+      item.from === "me" &&
+      (item.state === "queued" || item.state === "sending")
+        ? [
+            {
+              id: item.id,
+              state: item.state,
+              previewUrl: item.previewUrl ?? null,
+            },
+          ]
+        : [],
     ),
+    canQueuePhoto:
+      thread.filter(
+        (item) =>
+          item.kind === "photo" &&
+          item.from === "me" &&
+          (item.state === "queued" || item.state === "sending"),
+      ).length < MAX_QUEUED_PHOTOS,
     linkReport,
     screenWatch: describeScreenWatch({
       visible: screenFront,
