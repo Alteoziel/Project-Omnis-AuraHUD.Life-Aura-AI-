@@ -63,7 +63,7 @@
           return "";
         }
         try {
-          // Avoid a boot→replace→boot loop if the page cache never warms.
+          // If replace served boot.html again, stop. Real pages clear this lock.
           if (sessionStorage.getItem(lockKey) === url) {
             sessionStorage.removeItem(lockKey);
             return;
@@ -78,7 +78,6 @@
             },
           });
           if (!res.ok) throw new Error("boot fetch failed");
-          sessionStorage.removeItem(lockKey);
           location.replace(url);
         } catch (e) {
           sessionStorage.removeItem(lockKey);
