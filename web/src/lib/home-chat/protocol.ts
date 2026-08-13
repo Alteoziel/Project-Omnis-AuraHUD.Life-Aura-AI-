@@ -3,7 +3,7 @@ import { b64UrlToBytes, bytesToB64Url } from "@/lib/home-chat/crypto";
 export const HOME_CHAT_PROTOCOL_VERSION = 1;
 // iPhone data channels often cap a message at 16KiB. Chunks are encrypted and
 // base64'd twice, so keep the plaintext slice well under that.
-export const PHOTO_CHUNK_SIZE = 2_500;
+export const PHOTO_CHUNK_SIZE = 1_500;
 export const MAX_PHOTO_BYTES = 1_200_000;
 export const MAX_TEXT_CHARS = 2_000;
 /** iPhone data channels often cap one message — and the whole send buffer — at 16KiB. */
@@ -159,7 +159,8 @@ export function isHomeChatQuotaError(err: unknown): boolean {
   return (
     name === "QuotaExceededError" ||
     name === "NS_ERROR_DOM_QUOTA_REACHED" ||
-    /quota has been exceeded/i.test(message)
+    /quota has been exceeded/i.test(message) ||
+    /nearby link is busy/i.test(message)
   );
 }
 

@@ -68,7 +68,7 @@ export type ThreadItem =
       id: string;
       kind: "photo";
       from: "me" | "them";
-      state: "ready" | "removed" | "sent" | "receiving" | "sending";
+      state: "ready" | "removed" | "sent" | "receiving" | "sending" | "queued";
       reactions: ChatReaction[];
     };
 
@@ -76,6 +76,12 @@ type PhotoAssembler = {
   total: number;
   chunks: Map<number, Uint8Array>;
   key: CryptoKey | null;
+};
+
+type QueuedPhoto = {
+  id: string;
+  sealed: Uint8Array;
+  keyB64: string;
 };
 
 export function useHomeChat(displayName: string) {
@@ -109,6 +115,9 @@ export function useHomeChat(displayName: string) {
   const pendingRef = useRef<(string | Uint8Array)[]>([]);
   const sendLockRef = useRef(Promise.resolve());
   const ingestLockRef = useRef(Promise.resolve());
+  const photoQueueRef = useRef<QueuedPhoto[]>([]);
+  const pumpingPhotosRef = useRef(false);
+  const pumpOutgoingPhotosRef = useRef<() => Promise<void>>(async () => {});
   const stopAdvertiseRef = useRef<(() => void) | null>(null);
   const guestWaitRef = useRef<number | null>(null);
   const hangingUpRef = useRef(false);
@@ -144,6 +153,9 @@ export function useHomeChat(displayName: string) {
     ratchetRef.current = null;
     assemblersRef.current.clear();
     pendingRef.current = [];
+    for (const job of photoQueueRef.current) wipeBytes(job.sealed);
+    photoQueueRef.current = [];
+    pumpingPhotosRef.current = false;
     const viewing = viewingPhotoRef.current;
     viewingPhotoRef.current = null;
     if (viewing) wipeBytes(viewing.bytes);
@@ -403,6 +415,77 @@ export function useHomeChat(displayName: string) {
     return next;
   }, []);
 
+  const pumpOutgoingPhotos = useCallback(async () => {
+    if (pumpingPhotosRef.current) return;
+    pumpingPhotosRef.current = true;
+    try {
+      while (!hangingUpRef.current && photoQueueRef.current.length > 0) {
+        if (!peerRef.current?.connected || !ratchetRef.current) break;
+        const job = photoQueueRef.current[0];
+        setThread((items) =>
+          items.map((item) =>
+            item.id === job.id && item.kind === "photo"
+              ? { ...item, state: "sending" }
+              : item,
+          ),
+        );
+        try {
+          await sendControl({
+            v: 1,
+            type: "photo-meta",
+            id: job.id,
+            mime: "image/jpeg",
+            byteLength: job.sealed.byteLength,
+            oneTime: true,
+            key: job.keyB64,
+          });
+          for (const frame of splitPhotoChunks(job.id, job.sealed)) {
+            if (hangingUpRef.current || !peerRef.current?.connected) {
+              throw new Error("Nearby link is not connected yet.");
+            }
+            await sendControl(frame);
+          }
+          await sendControl({ v: 1, type: "photo-end", id: job.id });
+          wipeBytes(job.sealed);
+          photoQueueRef.current.shift();
+          setThread((items) =>
+            items.map((item) =>
+              item.id === job.id && item.kind === "photo"
+                ? { ...item, state: "sent" }
+                : item,
+            ),
+          );
+        } catch (err) {
+          const failed = photoQueueRef.current.shift();
+          if (failed) {
+            wipeBytes(failed.sealed);
+            setThread((items) => items.filter((item) => item.id !== failed.id));
+          }
+          if (!hangingUpRef.current && peerRef.current?.connected) {
+            setError(
+              describeHomeChatError(err, "Could not send that photo. Try again."),
+            );
+          } else {
+            break;
+          }
+        }
+      }
+    } finally {
+      pumpingPhotosRef.current = false;
+      if (
+        !hangingUpRef.current &&
+        photoQueueRef.current.length > 0 &&
+        peerRef.current?.connected
+      ) {
+        void pumpOutgoingPhotosRef.current();
+      }
+    }
+  }, [sendControl]);
+
+  useEffect(() => {
+    pumpOutgoingPhotosRef.current = pumpOutgoingPhotos;
+  }, [pumpOutgoingPhotos]);
+
   const connectPeer = useCallback(
     async (role: "host" | "guest", roomId: string) => {
       roleRef.current = role;
@@ -545,7 +628,7 @@ export function useHomeChat(displayName: string) {
 
   const sendPhoto = useCallback(
     async (video: HTMLVideoElement) => {
-      if (!ratchetRef.current) {
+      if (!ratchetRef.current || !peerRef.current?.connected) {
         setError("Nearby link is not ready.");
         return;
       }
@@ -553,46 +636,31 @@ export function useHomeChat(displayName: string) {
       setError(null);
       try {
         const plain = await captureFrameToJpeg(video);
-        setThread((items) => [
-          ...items,
-          { id, kind: "photo", from: "me", state: "sending", reactions: [] },
-        ]);
         const { key, raw } = await generatePhotoKey();
         const sealed = await encryptBytes(key, plain);
         wipeBytes(plain);
-        const photoKey = bytesToB64Url(raw);
+        const keyB64 = bytesToB64Url(raw);
         wipeBytes(raw);
-        await sendControl({
-          v: 1,
-          type: "photo-meta",
-          id,
-          mime: "image/jpeg",
-          byteLength: sealed.byteLength,
-          oneTime: true,
-          key: photoKey,
-        });
-        for (const frame of splitPhotoChunks(id, sealed)) {
-          await sendControl(frame);
-        }
-        wipeBytes(sealed);
-        await sendControl({ v: 1, type: "photo-end", id });
-        setThread((items) =>
-          items.map((item) =>
-            item.id === id && item.kind === "photo"
-              ? { ...item, state: "sent" }
-              : item,
-          ),
-        );
+        photoQueueRef.current.push({ id, sealed, keyB64 });
+        setThread((items) => [
+          ...items,
+          {
+            id,
+            kind: "photo",
+            from: "me",
+            state: photoQueueRef.current.length > 1 || pumpingPhotosRef.current ? "queued" : "sending",
+            reactions: [],
+          },
+        ]);
         setCameraMode(null);
+        void pumpOutgoingPhotos();
       } catch (err) {
-        setThread((items) => items.filter((item) => item.id !== id));
-        setCameraMode(null);
         setError(
           describeHomeChatError(err, "Could not send that photo. Try again."),
         );
       }
     },
-    [sendControl],
+    [pumpOutgoingPhotos],
   );
 
   const openPhoto = useCallback(async (id: string) => {
@@ -710,6 +778,12 @@ export function useHomeChat(displayName: string) {
     joinWithInvite,
     joinFromBluetooth,
     fail: (message: string) => setError(message),
+    photoSendQueue: thread.filter(
+      (item): item is Extract<ThreadItem, { kind: "photo" }> =>
+        item.kind === "photo" &&
+        item.from === "me" &&
+        (item.state === "queued" || item.state === "sending"),
+    ),
     linkReport,
     screenWatch: describeScreenWatch({
       visible: screenFront,
