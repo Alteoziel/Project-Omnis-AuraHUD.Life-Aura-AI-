@@ -5,6 +5,7 @@ import { ChatBubble } from "@/components/home-chat/ChatBubble";
 import { InAppCamera } from "@/components/home-chat/InAppCamera";
 import { LinkPathPanel } from "@/components/home-chat/LinkPathPanel";
 import { OneTimePhotoViewer } from "@/components/home-chat/OneTimePhotoViewer";
+import { PhotoSendQueueStrip } from "@/components/home-chat/PhotoSendQueueStrip";
 import { useHomeChat } from "@/components/home-chat/useHomeChat";
 import { isHomeChatCode, normalizeHomeChatCode } from "@/lib/home-chat/codes";
 
@@ -112,6 +113,7 @@ export function HomeChatApp({ displayName }: { displayName: string }) {
           actionLabel={chat.cameraMode === "photo" ? "Take photo" : "Scan code"}
           onClose={() => chat.setCameraMode(null)}
           onCapture={(video) => chat.sendPhoto(video)}
+          sendQueue={chat.photoSendQueue}
           onFrame={chat.cameraMode === "scan" ? onScanFrame : undefined}
           onError={(message) => {
             chat.setCameraMode(null);
@@ -290,8 +292,6 @@ function ChatPanel({
   fingerprint: string | null;
   photoSendQueue: ReturnType<typeof useHomeChat>["photoSendQueue"];
 }) {
-  const waiting = photoSendQueue.filter((item) => item.state === "queued").length;
-  const sending = photoSendQueue.some((item) => item.state === "sending");
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <LinkPathPanel
@@ -299,17 +299,7 @@ function ChatPanel({
         screenWatch={screenWatch}
         fingerprint={fingerprint}
       />
-      {photoSendQueue.length > 0 ? (
-        <p className="border-b border-ink-900/10 bg-moss-500/15 px-4 py-2 text-xs font-semibold text-ink-800">
-          {sending
-            ? waiting > 0
-              ? `Sending a photo · ${waiting} waiting for a clear link`
-              : "Sending photo · waiting for a clear link"
-            : waiting === 1
-              ? "1 photo waiting for a clear link"
-              : `${waiting} photos waiting for a clear link`}
-        </p>
-      ) : null}
+      <PhotoSendQueueStrip items={photoSendQueue} />
       <ul
         ref={scrollerRef}
         className="flex-1 space-y-2 overflow-y-auto px-4 py-3"

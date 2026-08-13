@@ -2,6 +2,10 @@
 
 import { useEffect, useRef, useState } from "react";
 import { openInAppCamera, stopMediaStream } from "@/lib/home-chat/camera";
+import {
+  PhotoSendQueueStrip,
+  type PhotoSendQueueItem,
+} from "@/components/home-chat/PhotoSendQueueStrip";
 
 export function InAppCamera({
   mode,
@@ -10,6 +14,7 @@ export function InAppCamera({
   onFrame,
   onError,
   actionLabel,
+  sendQueue = [],
 }: {
   mode: "photo" | "scan";
   onClose: () => void;
@@ -17,6 +22,7 @@ export function InAppCamera({
   onFrame?: (video: HTMLVideoElement) => void | Promise<void>;
   onError?: (message: string) => void;
   actionLabel: string;
+  sendQueue?: PhotoSendQueueItem[];
 }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -110,8 +116,10 @@ export function InAppCamera({
         <p className="rounded-full bg-ink-950/55 px-3 py-1 text-xs font-bold text-sand-50">
           {mode === "photo"
             ? busy
-              ? "Sending photo…"
-              : "In-app camera · not saved to Photos"
+              ? "Adding to queue…"
+              : sendQueue.length > 0
+                ? "Keep shooting · queue will send"
+                : "In-app camera · not saved to Photos"
             : "Point at a Home Chat code"}
         </p>
         <button
@@ -124,6 +132,9 @@ export function InAppCamera({
       </div>
       {mode === "photo" ? (
         <div className="absolute inset-x-0 bottom-0 flex flex-col items-center gap-3 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
+          <div className="w-full">
+            <PhotoSendQueueStrip items={sendQueue} tone="dark" />
+          </div>
           <div className="flex w-full items-center justify-center gap-10 px-8">
             <button
               type="button"
@@ -165,8 +176,10 @@ export function InAppCamera({
                   ? "Switching camera…"
                   : "Starting camera…"
                 : busy
-                  ? "Sending…"
-                  : facing === "user"
+                  ? "Queuing…"
+                  : sendQueue.length > 0
+                    ? "Tap for another · sending in the background"
+                    : facing === "user"
                     ? "Front camera · tap to send"
                     : "Tap to send a one-time photo"}
           </p>

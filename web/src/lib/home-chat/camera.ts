@@ -76,6 +76,30 @@ export async function captureFrameToJpeg(
   return bytes;
 }
 
+/** Tiny JPEG preview for the outgoing send queue. Not saved to Photos. */
+export function capturePreviewDataUrl(video: HTMLVideoElement): string | null {
+  const width = video.videoWidth;
+  const height = video.videoHeight;
+  if (!width || !height || video.readyState < 2) return null;
+  const max = 96;
+  const scale = Math.min(1, max / Math.max(width, height));
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.max(1, Math.round(width * scale));
+  canvas.height = Math.max(1, Math.round(height * scale));
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return null;
+  ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+  try {
+    return canvas.toDataURL("image/jpeg", 0.45);
+  } catch {
+    return null;
+  } finally {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    canvas.width = 0;
+    canvas.height = 0;
+  }
+}
+
 export function stopMediaStream(stream: MediaStream | null): void {
   if (!stream) return;
   for (const track of stream.getTracks()) {

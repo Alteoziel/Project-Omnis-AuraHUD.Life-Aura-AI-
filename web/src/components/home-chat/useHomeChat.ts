@@ -6,7 +6,7 @@ import {
   getBluetoothCapability,
   requestNearbyHomeChatDevice,
 } from "@/lib/home-chat/bluetooth";
-import { captureFrameToJpeg } from "@/lib/home-chat/camera";
+import { captureFrameToJpeg, capturePreviewDataUrl } from "@/lib/home-chat/camera";
 import { generateHomeChatCode, isHomeChatCode, normalizeHomeChatCode } from "@/lib/home-chat/codes";
 import {
   b64UrlToBytes,
@@ -69,6 +69,7 @@ export type ThreadItem =
       kind: "photo";
       from: "me" | "them";
       state: "ready" | "removed" | "sent" | "receiving" | "sending" | "queued";
+      previewUrl?: string;
       reactions: ChatReaction[];
     };
 
@@ -451,7 +452,7 @@ export function useHomeChat(displayName: string) {
           setThread((items) =>
             items.map((item) =>
               item.id === job.id && item.kind === "photo"
-                ? { ...item, state: "sent" }
+                ? { ...item, state: "sent", previewUrl: undefined }
                 : item,
             ),
           );
@@ -636,6 +637,7 @@ export function useHomeChat(displayName: string) {
       setError(null);
       try {
         const plain = await captureFrameToJpeg(video);
+        const previewUrl = capturePreviewDataUrl(video);
         const { key, raw } = await generatePhotoKey();
         const sealed = await encryptBytes(key, plain);
         wipeBytes(plain);
@@ -648,11 +650,14 @@ export function useHomeChat(displayName: string) {
             id,
             kind: "photo",
             from: "me",
-            state: photoQueueRef.current.length > 1 || pumpingPhotosRef.current ? "queued" : "sending",
+            state:
+              photoQueueRef.current.length > 1 || pumpingPhotosRef.current
+                ? "queued"
+                : "sending",
             reactions: [],
+            previewUrl: previewUrl ?? undefined,
           },
         ]);
-        setCameraMode(null);
         void pumpOutgoingPhotos();
       } catch (err) {
         setError(
@@ -778,11 +783,18 @@ export function useHomeChat(displayName: string) {
     joinWithInvite,
     joinFromBluetooth,
     fail: (message: string) => setError(message),
-    photoSendQueue: thread.filter(
-      (item): item is Extract<ThreadItem, { kind: "photo" }> =>
-        item.kind === "photo" &&
-        item.from === "me" &&
-        (item.state === "queued" || item.state === "sending"),
+    photoSendQueue: thread.flatMap((item) =>
+      item.kind === "photo" &&
+      item.from === "me" &&
+      (item.state === "queued" || item.state === "sending")
+        ? [
+            {
+              id: item.id,
+              state: item.state,
+              previewUrl: item.previewUrl ?? null,
+            },
+          ]
+        : [],
     ),
     linkReport,
     screenWatch: describeScreenWatch({
