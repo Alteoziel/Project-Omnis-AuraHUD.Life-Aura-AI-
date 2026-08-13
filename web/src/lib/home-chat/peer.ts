@@ -91,10 +91,9 @@ export class HomeChatPeer {
     if (!this.channel || this.channel.readyState !== "open") {
       throw new Error("Nearby link is not connected yet.");
     }
-    const max =
-      this.channel.maxMessageSize && this.channel.maxMessageSize > 0
-        ? this.channel.maxMessageSize
-        : 16_384;
+    const advertisedMax = (this.channel as RTCDataChannel & { maxMessageSize?: number })
+      .maxMessageSize;
+    const max = typeof advertisedMax === "number" && advertisedMax > 0 ? advertisedMax : 16_384;
     if (new TextEncoder().encode(text).byteLength > max) {
       throw new Error("That photo is too large for this nearby link.");
     }

@@ -18,9 +18,14 @@ function jpegDataUrlToBytes(dataUrl: string): Uint8Array {
   return out;
 }
 
+function bytesToArrayBuffer(bytes: Uint8Array): ArrayBuffer {
+  const buffer = new ArrayBuffer(bytes.byteLength);
+  new Uint8Array(buffer).set(bytes);
+  return buffer;
+}
+
 export async function bytesToJpegBlob(bytes: Uint8Array): Promise<Blob> {
-  const copy = bytes.slice();
-  return new Blob([copy], { type: "image/jpeg" });
+  return new Blob([bytesToArrayBuffer(bytes)], { type: "image/jpeg" });
 }
 
 /**
@@ -53,7 +58,11 @@ export async function captureFrameToJpeg(
         }
         try {
           const dataUrl = canvas.toDataURL("image/jpeg", JPEG_QUALITY);
-          resolve(new Blob([jpegDataUrlToBytes(dataUrl)], { type: "image/jpeg" }));
+          resolve(
+            new Blob([bytesToArrayBuffer(jpegDataUrlToBytes(dataUrl))], {
+              type: "image/jpeg",
+            }),
+          );
         } catch {
           reject(new Error("Could not encode the photo."));
         }
