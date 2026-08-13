@@ -183,7 +183,7 @@ try {
   for (const relPath of stashPaths) stash(relPath);
   applyOverlays();
 
-  const result = spawnSync("npx", ["next", "build"], {
+  const result = spawnSync("npx", ["next", "build", "--webpack"], {
     cwd: webDir,
     stdio: "inherit",
     env: {
