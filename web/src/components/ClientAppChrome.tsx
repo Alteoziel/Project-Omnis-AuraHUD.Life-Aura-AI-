@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { DesktopSideNav, MobileBottomNav } from "@/components/AppNav";
 import { AppLiveShell } from "@/components/AppLiveShell";
 import { AppOfflineShell } from "@/components/AppOfflineShell";
+import { HomeChatSessionLockProvider } from "@/components/home-chat/HomeChatSessionLock";
 import { BudgetSwitcher } from "@/components/BudgetSwitcher";
 import { CollaboratorsBadge } from "@/components/CollaboratorsBadge";
 import { createClient } from "@/lib/supabase/client";
@@ -152,12 +153,14 @@ export function ClientAppChrome({ children }: { children: React.ReactNode }) {
   );
 
   return (
-    <AppLiveShell
-      budgetId={active?.budget.id}
-      userId={active?.userId}
-      displayName={displayName}
-    >
-      {body}
-    </AppLiveShell>
+    <HomeChatSessionLockProvider>
+      <AppLiveShell
+        budgetId={active?.budget.id}
+        userId={active?.userId}
+        displayName={displayName}
+      >
+        {body}
+      </AppLiveShell>
+    </HomeChatSessionLockProvider>
   );
 }

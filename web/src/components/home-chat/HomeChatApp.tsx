@@ -6,17 +6,28 @@ import { InAppCamera } from "@/components/home-chat/InAppCamera";
 import { LinkPathPanel } from "@/components/home-chat/LinkPathPanel";
 import { PhotoSendQueueStrip } from "@/components/home-chat/PhotoSendQueueStrip";
 import { OneTimePhotoViewer } from "@/components/home-chat/OneTimePhotoViewer";
+import { useHomeChatSessionLock } from "@/components/home-chat/HomeChatSessionLock";
 import { useHomeChat } from "@/components/home-chat/useHomeChat";
+import { homeChatLocksAppNav } from "@/lib/app-nav";
 import { isHomeChatCode, normalizeHomeChatCode } from "@/lib/home-chat/codes";
 
 export function HomeChatApp({ displayName }: { displayName: string }) {
   const chat = useHomeChat(displayName);
   const scrollerRef = useRef<HTMLUListElement>(null);
+  const { setLocked } = useHomeChatSessionLock();
 
   const onScanFrame = useCallback(
     (video: HTMLVideoElement) => chat.scanFrame(video),
     [chat],
   );
+
+  useEffect(() => {
+    setLocked(homeChatLocksAppNav(chat.phase));
+  }, [chat.phase, setLocked]);
+
+  useEffect(() => {
+    return () => setLocked(false);
+  }, [setLocked]);
 
   useEffect(() => {
     const node = scrollerRef.current;
