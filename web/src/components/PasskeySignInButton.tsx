@@ -34,7 +34,7 @@ export function PasskeySignInButton({ next }: { next: string }) {
             setPending(false);
           }
         }}
-        className="touch-manipulation min-h-11 w-full rounded-2xl bg-moss-500 px-4 py-3.5 text-sm font-bold text-sand-50 hover:bg-moss-600 disabled:cursor-wait disabled:opacity-60"
+        className="touch-manipulation min-h-12 w-full rounded-2xl bg-moss-500 px-4 py-3.5 text-base font-bold text-sand-50 hover:bg-moss-600 disabled:cursor-wait disabled:opacity-60"
       >
         {pending ? "Waiting for passkey…" : "Sign in with passkey"}
       </button>

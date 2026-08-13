@@ -34,58 +34,63 @@ export function ClientAppChrome({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     let cancelled = false;
     const load = async () => {
-      const supabase = createClient();
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (!user) {
-        router.replace("/login");
-        return;
-      }
-      const { data: memberships } = await supabase
-        .from("budget_members")
-        .select("role, budget_id")
-        .eq("user_id", user.id);
-      const ids = (memberships ?? []).map((row) => row.budget_id as string);
-      let nextBudgets: Array<Budget & { role: BudgetRole }> = [];
-      if (ids.length) {
-        const { data: budgetRows } = await supabase
-          .from("budgets")
-          .select("id, name, created_by")
-          .in("id", ids);
-        const byId = new Map(
-          (budgetRows ?? []).map((row) => [row.id as string, row as Budget]),
+      try {
+        const supabase = createClient();
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+        if (!user) {
+          router.replace("/login");
+          return;
+        }
+        const { data: memberships } = await supabase
+          .from("budget_members")
+          .select("role, budget_id")
+          .eq("user_id", user.id);
+        const ids = (memberships ?? []).map((row) => row.budget_id as string);
+        let nextBudgets: Array<Budget & { role: BudgetRole }> = [];
+        if (ids.length) {
+          const { data: budgetRows } = await supabase
+            .from("budgets")
+            .select("id, name, created_by")
+            .in("id", ids);
+          const byId = new Map(
+            (budgetRows ?? []).map((row) => [row.id as string, row as Budget]),
+          );
+          nextBudgets = (memberships ?? [])
+            .map((row) => {
+              const budget = byId.get(row.budget_id as string);
+              if (!budget) return null;
+              return { ...budget, role: row.role as BudgetRole };
+            })
+            .filter(Boolean) as Array<Budget & { role: BudgetRole }>;
+        }
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("display_name, current_budget_id")
+          .eq("id", user.id)
+          .maybeSingle();
+        const preferred =
+          (profile?.current_budget_id as string | null) ||
+          nextBudgets[0]?.id ||
+          null;
+        const selected =
+          nextBudgets.find((budget) => budget.id === preferred) ??
+          nextBudgets[0] ??
+          null;
+        if (cancelled) return;
+        setDisplayName(profile?.display_name?.trim() || "You");
+        setBudgets(nextBudgets);
+        setActive(
+          selected
+            ? { budget: selected, role: selected.role, userId: user.id }
+            : null,
         );
-        nextBudgets = (memberships ?? [])
-          .map((row) => {
-            const budget = byId.get(row.budget_id as string);
-            if (!budget) return null;
-            return { ...budget, role: row.role as BudgetRole };
-          })
-          .filter(Boolean) as Array<Budget & { role: BudgetRole }>;
+      } catch {
+        // Render the page without budget chrome rather than hanging on a blank shell.
+      } finally {
+        if (!cancelled) setReady(true);
       }
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("display_name, current_budget_id")
-        .eq("id", user.id)
-        .maybeSingle();
-      const preferred =
-        (profile?.current_budget_id as string | null) ||
-        nextBudgets[0]?.id ||
-        null;
-      const selected =
-        nextBudgets.find((budget) => budget.id === preferred) ??
-        nextBudgets[0] ??
-        null;
-      if (cancelled) return;
-      setDisplayName(profile?.display_name?.trim() || "You");
-      setBudgets(nextBudgets);
-      setActive(
-        selected
-          ? { budget: selected, role: selected.role, userId: user.id }
-          : null,
-      );
-      setReady(true);
     };
     void load();
     return () => {

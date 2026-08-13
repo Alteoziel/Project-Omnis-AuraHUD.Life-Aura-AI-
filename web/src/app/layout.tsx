@@ -3,6 +3,7 @@ import { headers } from "next/headers";
 import { Syne, Source_Sans_3 } from "next/font/google";
 import { RegisterServiceWorker } from "@/components/RegisterServiceWorker";
 import { ThemeInit } from "@/components/ThemeInit";
+import { authCallbackCatchScript } from "@/lib/site-url";
 import "./globals.css";
 
 const display = Syne({
@@ -60,6 +61,7 @@ html.light,html.light body{background-color:#e8eef4!important;color-scheme:light
 
 // Runs in <head>: honor saved theme even when it differs from system.
 const themeScript = `(function(){try{sessionStorage.removeItem("alte-boot-lock");var p=localStorage.getItem("alte-theme");var d=p==="dark"||((!p||p==="system")&&window.matchMedia("(prefers-color-scheme: dark)").matches);var r=document.documentElement;var bg=d?"#0b1220":"#e8eef4";r.classList.toggle("dark",d);r.classList.toggle("light",!d);r.style.colorScheme=d?"dark":"light";r.style.backgroundColor=bg;var m=document.querySelector('meta[name="theme-color"]');if(!m){m=document.createElement("meta");m.setAttribute("name","theme-color");document.head.appendChild(m);}m.setAttribute("content",bg);}catch(e){}})();`;
+const authCatchScript = authCallbackCatchScript();
 
 // Body exists here — paint it before React hydrates / data streams.
 const bodyThemeScript = `(function(){try{var d=document.documentElement.classList.contains("dark");document.body.style.backgroundColor=d?"#0b1220":"#e8eef4";}catch(e){}})();`;
@@ -131,6 +133,10 @@ export default async function RootLayout({
         <script
           nonce={nonce}
           dangerouslySetInnerHTML={{ __html: themeScript }}
+        />
+        <script
+          nonce={nonce}
+          dangerouslySetInnerHTML={{ __html: authCatchScript }}
         />
         <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
         {appleSplashes.map((splash) => (
