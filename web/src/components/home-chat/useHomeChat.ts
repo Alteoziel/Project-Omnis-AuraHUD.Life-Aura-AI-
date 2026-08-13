@@ -67,7 +67,7 @@ export type ThreadItem =
       id: string;
       kind: "photo";
       from: "me" | "them";
-      state: "ready" | "removed" | "sent" | "receiving";
+      state: "ready" | "removed" | "sent" | "receiving" | "sending";
       reactions: ChatReaction[];
     };
 
@@ -463,10 +463,14 @@ export function useHomeChat(displayName: string) {
         setError("Nearby link is not ready.");
         return;
       }
+      const id = crypto.randomUUID();
+      setError(null);
       try {
         const plain = await captureFrameToJpeg(video);
-        setCameraMode(null);
-        const id = crypto.randomUUID();
+        setThread((items) => [
+          ...items,
+          { id, kind: "photo", from: "me", state: "sending", reactions: [] },
+        ]);
         const sealed = await encryptBytes(sessionKey, plain);
         wipeBytes(plain);
         await sendControl({
@@ -482,11 +486,16 @@ export function useHomeChat(displayName: string) {
         }
         wipeBytes(sealed);
         await sendControl({ v: 1, type: "photo-end", id });
-        setThread((items) => [
-          ...items,
-          { id, kind: "photo", from: "me", state: "sent", reactions: [] },
-        ]);
+        setThread((items) =>
+          items.map((item) =>
+            item.id === id && item.kind === "photo"
+              ? { ...item, state: "sent" }
+              : item,
+          ),
+        );
+        setCameraMode(null);
       } catch (err) {
+        setThread((items) => items.filter((item) => item.id !== id));
         setCameraMode(null);
         setError(
           describeHomeChatError(err, "Could not send that photo. Try again."),

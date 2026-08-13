@@ -19,7 +19,6 @@ export function ChatBubble({
 }) {
   const [pickerOpen, setPickerOpen] = useState(false);
   const holdRef = useRef<number | null>(null);
-  const emojiInputRef = useRef<HTMLInputElement>(null);
   const mine = item.from === "me";
 
   useEffect(() => {
@@ -67,15 +66,14 @@ export function ChatBubble({
             );
           })}
           <input
-            ref={emojiInputRef}
             aria-label="Choose any emoji from the keyboard"
             inputMode="text"
             autoComplete="off"
             autoCorrect="off"
             autoCapitalize="none"
             enterKeyHint="done"
-            placeholder="☺"
-            className="h-11 w-11 shrink-0 rounded-full border border-ink-900/10 bg-white text-center text-xl leading-none outline-none ring-moss-400 focus:ring-2"
+            placeholder="+"
+            className="h-11 w-11 shrink-0 rounded-full border border-ink-900/10 bg-white text-center text-lg font-bold leading-none text-ink-500 outline-none ring-moss-400 focus:ring-2"
             onChange={(event) => {
               const emoji = normalizeReactionEmoji(event.target.value);
               event.target.value = "";
@@ -84,6 +82,13 @@ export function ChatBubble({
               setPickerOpen(false);
             }}
           />
+          <button
+            type="button"
+            onClick={() => setPickerOpen(false)}
+            className="h-11 shrink-0 px-2 text-xs font-bold text-ink-600"
+          >
+            Close
+          </button>
         </div>
       ) : null}
 
@@ -92,7 +97,10 @@ export function ChatBubble({
           mine ? "bg-moss-500 text-sand-50" : "bg-sand-100 text-ink-900"
         }`}
         style={{ WebkitTouchCallout: "none" }}
-        onContextMenu={(event) => event.preventDefault()}
+        onContextMenu={(event) => {
+          event.preventDefault();
+          openPicker();
+        }}
         onPointerDown={() => {
           clearHold();
           holdRef.current = window.setTimeout(openPicker, 420);
@@ -112,6 +120,8 @@ export function ChatBubble({
           </button>
         ) : item.state === "sent" ? (
           "One-time photo sent"
+        ) : item.state === "sending" ? (
+          "Sending photo…"
         ) : item.state === "receiving" ? (
           "Receiving photo…"
         ) : (
@@ -134,10 +144,10 @@ export function ChatBubble({
         <button
           type="button"
           onClick={openPicker}
-          className="flex h-8 min-w-8 touch-manipulation items-center justify-center rounded-full bg-sand-100 px-2 text-sm text-ink-700"
-          aria-label="Add emoji reaction"
+          className="h-8 touch-manipulation rounded-full px-2 text-[11px] font-bold uppercase tracking-wide text-ink-500"
+          aria-label="Add reaction"
         >
-          ☺
+          React
         </button>
       </div>
     </li>
