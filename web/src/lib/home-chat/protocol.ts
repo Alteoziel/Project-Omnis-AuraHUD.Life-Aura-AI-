@@ -3,9 +3,11 @@ import { b64UrlToBytes, bytesToB64Url } from "@/lib/home-chat/crypto";
 export const HOME_CHAT_PROTOCOL_VERSION = 1;
 // iPhone data channels often cap a message at 16KiB. Chunks are encrypted and
 // base64'd twice, so keep the plaintext slice well under that.
-export const PHOTO_CHUNK_SIZE = 4_000;
+export const PHOTO_CHUNK_SIZE = 2_500;
 export const MAX_PHOTO_BYTES = 1_200_000;
 export const MAX_TEXT_CHARS = 2_000;
+/** iPhone data channels often cap one message — and the whole send buffer — at 16KiB. */
+export const MAX_DATA_CHANNEL_BYTES = 12_000;
 
 export type HomeChatRole = "host" | "guest";
 
@@ -141,4 +143,23 @@ export function assemblePhotoChunks(
 
 export function isControlRaw(raw: string): boolean {
   return raw.startsWith("{") && !raw.includes("\n");
+}
+
+export function isHomeChatQuotaError(err: unknown): boolean {
+  if (!err || typeof err !== "object") return false;
+  const name = "name" in err ? String(err.name) : "";
+  const message = "message" in err ? String(err.message) : "";
+  return (
+    name === "QuotaExceededError" ||
+    name === "NS_ERROR_DOM_QUOTA_REACHED" ||
+    /quota has been exceeded/i.test(message)
+  );
+}
+
+export function describeHomeChatError(err: unknown, fallback: string): string {
+  if (isHomeChatQuotaError(err)) {
+    return "This nearby link is too busy for that photo. Stay in the chat and try again.";
+  }
+  if (err instanceof Error && err.message) return err.message;
+  return fallback;
 }

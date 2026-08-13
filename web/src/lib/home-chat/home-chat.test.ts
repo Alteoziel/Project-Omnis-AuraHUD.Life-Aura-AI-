@@ -19,6 +19,8 @@ import {
 import { encodeHomeChatInvite, parseHomeChatInvite } from "@/lib/home-chat/invite";
 import {
   assemblePhotoChunks,
+  describeHomeChatError,
+  isHomeChatQuotaError,
   parseControl,
   parsePhotoChunk,
   splitPhotoChunks,
@@ -75,7 +77,11 @@ async function main() {
   const chunks = splitPhotoChunks("photo-1", photoSealed);
   assert.ok(chunks.length >= 2);
   for (const frame of chunks) {
-    assert.ok(frame.length < 8_000, "photo chunk must fit an iPhone data channel");
+    const wire = await encryptText(aliceKey, frame);
+    assert.ok(
+      wire.byteLength < 8_000,
+      "encrypted photo frame must fit an iPhone data channel",
+    );
   }
   const byIndex = new Map<number, Uint8Array>();
   for (const frame of chunks) {
@@ -101,6 +107,12 @@ async function main() {
   const scratch = new Uint8Array([9, 8, 7]);
   wipeBytes(scratch);
   assert.deepEqual(Array.from(scratch), [0, 0, 0]);
+
+  const quota = Object.assign(new Error("The quota has been exceeded."), {
+    name: "QuotaExceededError",
+  });
+  assert.equal(isHomeChatQuotaError(quota), true);
+  assert.match(describeHomeChatError(quota, "fallback"), /too busy for that photo/);
 
   console.log("home-chat.test.ts: ok");
 }

@@ -28,10 +28,10 @@ function b64UrlToBytes(value: string): Uint8Array {
   return out;
 }
 
-function asBufferSource(bytes: Uint8Array): ArrayBuffer {
-  const copy = new Uint8Array(bytes.byteLength);
-  copy.set(bytes);
-  return copy.buffer as ArrayBuffer;
+export function bytesToArrayBuffer(bytes: Uint8Array): ArrayBuffer {
+  const buffer = new ArrayBuffer(bytes.byteLength);
+  new Uint8Array(buffer).set(bytes);
+  return buffer;
 }
 
 export async function generateHomeChatKeyPair(): Promise<HomeChatKeyPair> {
@@ -49,7 +49,7 @@ export async function importPublicKeyB64(value: string): Promise<CryptoKey> {
   if (raw.byteLength !== 65) {
     throw new Error("Invalid Home Chat public key.");
   }
-  return crypto.subtle.importKey("raw", asBufferSource(raw), CURVE, true, []);
+  return crypto.subtle.importKey("raw", bytesToArrayBuffer(raw), CURVE, true, []);
 }
 
 export async function deriveSessionKey(
@@ -85,7 +85,7 @@ export async function encryptBytes(
     await crypto.subtle.encrypt(
       { name: "AES-GCM", iv },
       sessionKey,
-      asBufferSource(plaintext),
+      bytesToArrayBuffer(plaintext),
     ),
   );
   const out = new Uint8Array(1 + iv.byteLength + cipher.byteLength);
@@ -111,7 +111,7 @@ export async function decryptBytes(
     await crypto.subtle.decrypt(
       { name: "AES-GCM", iv },
       sessionKey,
-      asBufferSource(cipher),
+      bytesToArrayBuffer(cipher),
     ),
   );
 }

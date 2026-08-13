@@ -1,3 +1,9 @@
+import { bytesToArrayBuffer } from "@/lib/home-chat/crypto";
+import {
+  describeHomeChatError,
+  isHomeChatQuotaError,
+  MAX_DATA_CHANNEL_BYTES,
+} from "@/lib/home-chat/protocol";
 import {
   appendHomeChatSignal,
   fetchHomeChatRoom,
@@ -12,8 +18,12 @@ const ICE_SERVERS: RTCIceServer[] = [
   { urls: "stun:stun.l.google.com:19302" },
 ];
 
+// iPhone SCTP buffers are tiny. Wait until almost empty before each frame.
+const SEND_HIGH_WATER = 2_048;
+const SEND_LOW_WATER = 1_024;
+
 export type HomeChatPeerHandlers = {
-  onMessage: (data: string) => void;
+  onMessage: (data: string | Uint8Array) => void;
   onState: (state: RTCPeerConnectionState | "channel-open") => void;
 };
 
@@ -28,6 +38,7 @@ export class HomeChatPeer {
   private seen = new Set<string>();
   private pendingIce: RTCIceCandidateInit[] = [];
   private pollTimer: number | null = null;
+  private sendChain: Promise<void> = Promise.resolve();
 
   constructor(input: {
     role: "host" | "guest";
@@ -87,22 +98,65 @@ export class HomeChatPeer {
     }
   }
 
-  send(text: string): void {
+  send(data: string | Uint8Array): void {
     if (!this.channel || this.channel.readyState !== "open") {
       throw new Error("Nearby link is not connected yet.");
     }
     const advertisedMax = (this.channel as RTCDataChannel & { maxMessageSize?: number })
       .maxMessageSize;
-    const max = typeof advertisedMax === "number" && advertisedMax > 0 ? advertisedMax : 16_384;
-    if (new TextEncoder().encode(text).byteLength > max) {
+    const advertised =
+      typeof advertisedMax === "number" && advertisedMax > 0 ? advertisedMax : 16_384;
+    const max = Math.min(advertised, MAX_DATA_CHANNEL_BYTES);
+    const payload =
+      typeof data === "string" ? data : bytesToArrayBuffer(data);
+    const size =
+      typeof payload === "string"
+        ? new TextEncoder().encode(payload).byteLength
+        : payload.byteLength;
+    if (size > max) {
       throw new Error("That photo is too large for this nearby link.");
     }
-    this.channel.send(text);
+    try {
+      if (typeof payload === "string") this.channel.send(payload);
+      else this.channel.send(payload);
+    } catch (err) {
+      if (isHomeChatQuotaError(err)) throw err;
+      throw new Error(describeHomeChatError(err, "Could not send on the nearby link."));
+    }
   }
 
-  async sendWhenReady(text: string): Promise<void> {
-    await this.waitForBuffer();
-    this.send(text);
+  async sendWhenReady(data: string | Uint8Array): Promise<void> {
+    const run = async () => {
+      let lastError: unknown;
+      for (let attempt = 0; attempt < 8; attempt += 1) {
+        if (this.closed) {
+          throw new Error("Nearby link is not connected yet.");
+        }
+        await this.waitUntilBuffered(attempt === 0 ? SEND_HIGH_WATER : 0);
+        try {
+          this.send(data);
+          return;
+        } catch (err) {
+          lastError = err;
+          if (!isHomeChatQuotaError(err)) {
+            throw err;
+          }
+          await delay(40 * (attempt + 1));
+        }
+      }
+      throw new Error(
+        describeHomeChatError(
+          lastError,
+          "This nearby link is too busy for that photo. Stay in the chat and try again.",
+        ),
+      );
+    };
+    const next = this.sendChain.then(run, run);
+    this.sendChain = next.then(
+      () => undefined,
+      () => undefined,
+    );
+    return next;
   }
 
   async close(): Promise<void> {
@@ -124,33 +178,44 @@ export class HomeChatPeer {
 
   private bindDataChannel(channel: RTCDataChannel): void {
     this.channel = channel;
-    channel.bufferedAmountLowThreshold = 32_000;
+    channel.binaryType = "arraybuffer";
+    channel.bufferedAmountLowThreshold = SEND_LOW_WATER;
     channel.addEventListener("message", (event) => {
-      if (typeof event.data === "string") {
-        this.handlers.onMessage(event.data);
-      }
+      const payload = decodeChannelData(event.data);
+      if (payload) this.handlers.onMessage(payload);
     });
     channel.addEventListener("open", () => {
       this.handlers.onState("channel-open");
     });
   }
 
-  private waitForBuffer(): Promise<void> {
+  private waitUntilBuffered(maxAmount: number): Promise<void> {
     const channel = this.channel;
     if (!channel || channel.readyState !== "open") {
       return Promise.reject(new Error("Nearby link is not connected yet."));
     }
-    if (channel.bufferedAmount < 96_000) return Promise.resolve();
+    if (channel.bufferedAmount <= maxAmount) return Promise.resolve();
     return new Promise((resolve, reject) => {
-      const timer = window.setTimeout(() => {
-        channel.removeEventListener("bufferedamountlow", onLow);
-        reject(new Error("Nearby link is busy. Try the photo again."));
-      }, 8_000);
-      const onLow = () => {
+      const finish = (err?: Error) => {
+        window.clearInterval(poll);
         window.clearTimeout(timer);
         channel.removeEventListener("bufferedamountlow", onLow);
-        resolve();
+        if (err) reject(err);
+        else resolve();
       };
+      const onLow = () => {
+        if (channel.bufferedAmount <= maxAmount) finish();
+      };
+      const poll = window.setInterval(() => {
+        if (this.closed || channel.readyState !== "open") {
+          finish(new Error("Nearby link is not connected yet."));
+          return;
+        }
+        if (channel.bufferedAmount <= maxAmount) finish();
+      }, 16);
+      const timer = window.setTimeout(() => {
+        finish(new Error("Nearby link is busy. Try the photo again."));
+      }, 12_000);
       channel.addEventListener("bufferedamountlow", onLow);
     });
   }
@@ -276,4 +341,22 @@ export class HomeChatPeer {
       }
     }
   }
+}
+
+function decodeChannelData(data: unknown): string | Uint8Array | null {
+  if (typeof data === "string") return data;
+  if (data instanceof ArrayBuffer) return new Uint8Array(data);
+  if (ArrayBuffer.isView(data)) {
+    const view = new Uint8Array(data.buffer, data.byteOffset, data.byteLength);
+    const copy = new Uint8Array(view.byteLength);
+    copy.set(view);
+    return copy;
+  }
+  return null;
+}
+
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => {
+    window.setTimeout(resolve, ms);
+  });
 }
