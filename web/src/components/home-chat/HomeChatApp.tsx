@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, type RefObject } from "react";
+import { ChatBubble } from "@/components/home-chat/ChatBubble";
 import { InAppCamera } from "@/components/home-chat/InAppCamera";
 import { OneTimePhotoViewer } from "@/components/home-chat/OneTimePhotoViewer";
 import { useHomeChat } from "@/components/home-chat/useHomeChat";
@@ -96,6 +97,7 @@ export function HomeChatApp({ displayName }: { displayName: string }) {
           onSend={() => void chat.sendText()}
           onPhoto={() => chat.setCameraMode("photo")}
           onOpenPhoto={(id) => void chat.openPhoto(id)}
+          onReact={(id, emoji) => void chat.sendReaction(id, emoji)}
         />
       ) : null}
 
@@ -264,6 +266,7 @@ function ChatPanel({
   onSend,
   onPhoto,
   onOpenPhoto,
+  onReact,
 }: {
   scrollerRef: RefObject<HTMLUListElement | null>;
   thread: ReturnType<typeof useHomeChat>["thread"];
@@ -272,6 +275,7 @@ function ChatPanel({
   onSend: () => void;
   onPhoto: () => void;
   onOpenPhoto: (id: string) => void;
+  onReact: (id: string, emoji: string) => void;
 }) {
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -285,30 +289,12 @@ function ChatPanel({
           </li>
         ) : null}
         {thread.map((item) => (
-          <li
+          <ChatBubble
             key={item.id}
-            className={`max-w-[82%] rounded-2xl px-3 py-2 text-sm ${
-              item.from === "me"
-                ? "ml-auto bg-moss-500 text-sand-50"
-                : "bg-sand-100 text-ink-900"
-            }`}
-          >
-            {item.kind === "text" ? (
-              item.body
-            ) : item.state === "ready" ? (
-              <button
-                type="button"
-                onClick={() => onOpenPhoto(item.id)}
-                className="font-bold underline"
-              >
-                One-time photo · tap to view
-              </button>
-            ) : item.state === "sent" ? (
-              "One-time photo sent"
-            ) : (
-              "Photo viewed and removed"
-            )}
-          </li>
+            item={item}
+            onOpenPhoto={onOpenPhoto}
+            onReact={onReact}
+          />
         ))}
       </ul>
       <form

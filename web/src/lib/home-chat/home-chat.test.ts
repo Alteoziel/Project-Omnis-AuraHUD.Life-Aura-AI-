@@ -19,9 +19,15 @@ import {
 import { encodeHomeChatInvite, parseHomeChatInvite } from "@/lib/home-chat/invite";
 import {
   assemblePhotoChunks,
+  parseControl,
   parsePhotoChunk,
   splitPhotoChunks,
 } from "@/lib/home-chat/protocol";
+import {
+  firstGrapheme,
+  normalizeReactionEmoji,
+  upsertReaction,
+} from "@/lib/home-chat/reactions";
 
 async function main() {
   const fixed = new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8]);
@@ -78,6 +84,19 @@ async function main() {
   }
   const assembled = assemblePhotoChunks(chunks.length, byIndex);
   assert.deepEqual(Array.from(assembled), Array.from(photoSealed));
+
+  assert.equal(firstGrapheme("❤️👍"), "❤️");
+  assert.equal(normalizeReactionEmoji(" 🔥 "), "🔥");
+  assert.deepEqual(upsertReaction([], "me", "👍"), [{ from: "me", emoji: "👍" }]);
+  assert.deepEqual(upsertReaction([{ from: "me", emoji: "👍" }], "me", "😂"), [
+    { from: "me", emoji: "😂" },
+  ]);
+  assert.deepEqual(upsertReaction([{ from: "me", emoji: "👍" }], "me", ""), []);
+  const react = parseControl(
+    JSON.stringify({ v: 1, type: "react", id: "m1", emoji: "❤️" }),
+  );
+  assert.equal(react?.type, "react");
+  assert.equal(parseControl(JSON.stringify({ v: 1, type: "future-thing" })), null);
 
   const scratch = new Uint8Array([9, 8, 7]);
   wipeBytes(scratch);
