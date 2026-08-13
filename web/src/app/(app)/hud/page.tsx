@@ -33,48 +33,53 @@ export default function HudPage() {
     let cancelled = false;
     const supabase = createClient();
     async function load() {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (!user || cancelled) return;
-      await supabase.from("aura_privacy_settings").upsert({
-        user_id: user.id,
-        cloud_ai_enabled: false,
-      });
-      const [{ data: nextEvents }, { data: nextTasks }] = await Promise.all([
-        supabase
-          .from("aura_stream_events")
-          .select("id, kind, title, body, feedback, created_at")
-          .eq("user_id", user.id)
-          .order("created_at", { ascending: false })
-          .limit(20),
-        supabase
-          .from("aura_tasks")
-          .select("id, title, due_on, priority, status")
-          .eq("user_id", user.id)
-          .eq("status", "open")
-          .order("sort_score", { ascending: false })
-          .limit(10),
-      ]);
-      if (cancelled) return;
-      setEvents(
-        ((nextEvents as Array<StreamEvent & { body: string | null }> | null) ?? []).map(
-          (event) => ({
-            ...event,
-            body: event.body ?? "",
-          }),
-        ),
-      );
-      setTasks(
-        (
-          (nextTasks as Array<StreamTask & { priority: number | null }> | null) ??
-          []
-        ).map((task) => ({
-          ...task,
-          priority: task.priority ?? 3,
-        })),
-      );
-      setReady(true);
+      try {
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+        if (!user || cancelled) return;
+        await supabase.from("aura_privacy_settings").upsert({
+          user_id: user.id,
+          cloud_ai_enabled: false,
+        });
+        const [{ data: nextEvents }, { data: nextTasks }] = await Promise.all([
+          supabase
+            .from("aura_stream_events")
+            .select("id, kind, title, body, feedback, created_at")
+            .eq("user_id", user.id)
+            .order("created_at", { ascending: false })
+            .limit(20),
+          supabase
+            .from("aura_tasks")
+            .select("id, title, due_on, priority, status")
+            .eq("user_id", user.id)
+            .eq("status", "open")
+            .order("sort_score", { ascending: false })
+            .limit(10),
+        ]);
+        if (cancelled) return;
+        setEvents(
+          ((nextEvents as Array<StreamEvent & { body: string | null }> | null) ?? []).map(
+            (event) => ({
+              ...event,
+              body: event.body ?? "",
+            }),
+          ),
+        );
+        setTasks(
+          (
+            (nextTasks as Array<StreamTask & { priority: number | null }> | null) ??
+            []
+          ).map((task) => ({
+            ...task,
+            priority: task.priority ?? 3,
+          })),
+        );
+      } catch {
+        // Show the empty HUD rather than an infinite skeleton.
+      } finally {
+        if (!cancelled) setReady(true);
+      }
     }
     void (async () => {
       await load();

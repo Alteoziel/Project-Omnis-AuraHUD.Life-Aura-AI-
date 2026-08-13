@@ -28,7 +28,6 @@
     <script>
       (async function () {
         var url = location.href;
-        var lockKey = "alte-boot-lock";
         function appBase() {
           try {
             if (navigator.serviceWorker && navigator.serviceWorker.controller) {
@@ -63,12 +62,6 @@
           return "";
         }
         try {
-          // If replace served boot.html again, stop. Real pages clear this lock.
-          if (sessionStorage.getItem(lockKey) === url) {
-            sessionStorage.removeItem(lockKey);
-            return;
-          }
-          sessionStorage.setItem(lockKey, url);
           var res = await fetch(url, {
             credentials: "same-origin",
             cache: "reload",
@@ -78,9 +71,17 @@
             },
           });
           if (!res.ok) throw new Error("boot fetch failed");
-          location.replace(url);
+          if (res.headers.get("X-Alte-Boot-Shell") === "1") {
+            throw new Error("boot fetched another shell");
+          }
+          var html = await res.text();
+          if (!html) throw new Error("empty boot document");
+          // Paint in place. location.replace() re-enters this shell and can
+          // leave a blank black page when the page cache does not match.
+          document.open();
+          document.write(html);
+          document.close();
         } catch (e) {
-          sessionStorage.removeItem(lockKey);
           location.replace(appBase() + "/offline.html");
         }
       })();
