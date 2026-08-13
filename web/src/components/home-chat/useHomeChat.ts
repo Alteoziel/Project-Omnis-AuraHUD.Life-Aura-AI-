@@ -152,8 +152,6 @@ export function useHomeChat(displayName: string) {
     const vis = () => setScreenFront(document.visibilityState === "visible");
     const onFocus = () => setWindowFocused(true);
     const onBlur = () => setWindowFocused(false);
-    vis();
-    setWindowFocused(typeof document !== "undefined" && document.hasFocus());
     document.addEventListener("visibilitychange", vis);
     window.addEventListener("focus", onFocus);
     window.addEventListener("blur", onBlur);
@@ -165,10 +163,7 @@ export function useHomeChat(displayName: string) {
   }, []);
 
   useEffect(() => {
-    if (phase !== "chat") {
-      setLinkReport(null);
-      return;
-    }
+    if (phase !== "chat") return;
     let cancelled = false;
     const tick = async () => {
       try {
