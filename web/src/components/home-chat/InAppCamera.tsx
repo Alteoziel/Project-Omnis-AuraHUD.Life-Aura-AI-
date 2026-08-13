@@ -1,0 +1,121 @@
+"use client";
+
+import { useEffect, useRef } from "react";
+import { openInAppCamera, stopMediaStream } from "@/lib/home-chat/camera";
+
+export function InAppCamera({
+  mode,
+  onClose,
+  onCapture,
+  onFrame,
+  onError,
+  actionLabel,
+}: {
+  mode: "photo" | "scan";
+  onClose: () => void;
+  onCapture?: (video: HTMLVideoElement) => void | Promise<void>;
+  onFrame?: (video: HTMLVideoElement) => void | Promise<void>;
+  onError?: (message: string) => void;
+  actionLabel: string;
+}) {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const onCloseRef = useRef(onClose);
+  const onErrorRef = useRef(onError);
+  const onFrameRef = useRef(onFrame);
+  const onCaptureRef = useRef(onCapture);
+
+  useEffect(() => {
+    onCloseRef.current = onClose;
+    onErrorRef.current = onError;
+    onFrameRef.current = onFrame;
+    onCaptureRef.current = onCapture;
+  }, [onClose, onError, onFrame, onCapture]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const start = async () => {
+      const stream = await openInAppCamera("environment");
+      if (cancelled) {
+        stopMediaStream(stream);
+        return;
+      }
+      streamRef.current = stream;
+      const video = videoRef.current;
+      if (video) {
+        video.srcObject = stream;
+        await video.play().catch(() => undefined);
+      }
+    };
+    void start().catch((err: unknown) => {
+      onErrorRef.current?.(
+        err instanceof Error ? err.message : "Could not open the camera.",
+      );
+      onCloseRef.current();
+    });
+    return () => {
+      cancelled = true;
+      stopMediaStream(streamRef.current);
+      streamRef.current = null;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (mode !== "scan") return;
+    let frame = 0;
+    let ticks = 0;
+    let busy = false;
+    const tick = () => {
+      frame = window.requestAnimationFrame(tick);
+      ticks += 1;
+      if (ticks % 6 !== 0 || busy) return;
+      const video = videoRef.current;
+      if (!video || video.readyState < 2) return;
+      busy = true;
+      void Promise.resolve(onFrameRef.current?.(video)).finally(() => {
+        busy = false;
+      });
+    };
+    frame = window.requestAnimationFrame(tick);
+    return () => window.cancelAnimationFrame(frame);
+  }, [mode]);
+
+  return (
+    <div className="fixed inset-0 z-[90] bg-ink-950">
+      <video
+        ref={videoRef}
+        className="h-full w-full object-cover"
+        playsInline
+        muted
+        autoPlay
+      />
+      <div className="absolute inset-x-0 top-0 flex items-start justify-between p-4 pt-[max(1rem,env(safe-area-inset-top))]">
+        <p className="rounded-full bg-ink-950/55 px-3 py-1 text-xs font-bold text-sand-50">
+          {mode === "photo"
+            ? "In-app camera · not saved to Photos"
+            : "Point at a Home Chat code"}
+        </p>
+        <button
+          type="button"
+          onClick={() => onCloseRef.current()}
+          className="rounded-full bg-sand-50 px-3 py-1.5 text-sm font-bold text-ink-900"
+        >
+          Close
+        </button>
+      </div>
+      {mode === "photo" ? (
+        <div className="absolute inset-x-0 bottom-0 flex justify-center pb-[max(1.5rem,env(safe-area-inset-bottom))]">
+          <button
+            type="button"
+            onClick={() => {
+              const video = videoRef.current;
+              if (video) void onCaptureRef.current?.(video);
+            }}
+            className="h-16 w-16 rounded-full border-4 border-sand-50 bg-moss-500 shadow-lg"
+            aria-label={actionLabel}
+          />
+        </div>
+      ) : null}
+    </div>
+  );
+}

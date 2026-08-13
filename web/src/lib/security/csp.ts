@@ -30,8 +30,9 @@ export function buildContentSecurityPolicy(
     // React style attributes / CSS-in-JS still need this; styles are lower XSS risk than scripts.
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' data: blob: https:",
+    "media-src 'self' blob: mediastream:",
     "font-src 'self' data:",
-    "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://*.plaid.com https://production.plaid.com https://sandbox.plaid.com https://development.plaid.com",
+    "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://*.plaid.com https://production.plaid.com https://sandbox.plaid.com https://development.plaid.com stun:stun.cloudflare.com:3478 stun:stun.l.google.com:19302",
     "frame-src https://cdn.plaid.com https://*.plaid.com",
     "worker-src 'self' blob:",
     "object-src 'none'",
