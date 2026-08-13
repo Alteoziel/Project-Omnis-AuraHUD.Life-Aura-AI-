@@ -143,7 +143,10 @@ function writeSpaFallback(basePath) {
         var rel = path;
         if (repo && rel.indexOf(repo) === 0) rel = rel.slice(repo.length) || "/";
         function go(p, q) {
-          location.replace((repo || "") + p + (q || search || "") + hash);
+          var next = (repo || "") + p + (q || search || "") + hash;
+          var nextPath = next.split("?")[0].split("#")[0];
+          if (nextPath === path || nextPath + "/" === path || path + "/" === nextPath) return;
+          location.replace(next);
         }
         var acc = rel.match(/^\\/accounts\\/([^/]+)\\/?$/);
         if (acc && acc[1]) {

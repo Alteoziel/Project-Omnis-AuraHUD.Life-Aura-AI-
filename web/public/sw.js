@@ -1,5 +1,5 @@
 /* AuraHUD service worker — offline shell + last-visited pages. */
-const VERSION = "v11";
+const VERSION = "v12";
 const STATIC_CACHE = `alte-static-${VERSION}`;
 const PAGE_CACHE = `alte-pages-${VERSION}`;
 const PRIVATE_CACHE_MAX_AGE_MS = 14 * 24 * 60 * 60 * 1000;
@@ -29,6 +29,7 @@ const PRECACHE = [
 ].map(withBase);
 
 const APP_SHELL_PATHS = [
+  "/",
   "/hud",
   "/home-chat",
   "/trust",
@@ -39,7 +40,23 @@ const APP_SHELL_PATHS = [
   "/settings",
   "/offline",
   "/login",
+  "/privacy",
+  "/passkey-setup",
+  "/auth/callback",
+  "/invite",
 ];
+
+function normalizeAppPath(pathname) {
+  return stripBase(pathname).replace(/\/$/, "") || "/";
+}
+
+function isAppShellPath(pathname) {
+  const normalized = normalizeAppPath(pathname);
+  return APP_SHELL_PATHS.some((path) => {
+    if (path === "/") return normalized === "/";
+    return normalized === path || normalized.startsWith(`${path}/`);
+  });
+}
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
@@ -183,12 +200,7 @@ async function freshCachedPage(cache, request) {
 
 async function putPageCache(cache, request, response) {
   const url = new URL(request.url);
-  if (
-    !APP_SHELL_PATHS.some((path) => {
-      const current = stripBase(url.pathname);
-      return current === path || current.startsWith(`${path}/`);
-    })
-  ) {
+  if (!isAppShellPath(url.pathname)) {
     return;
   }
   const headers = new Headers(response.headers);
@@ -245,7 +257,7 @@ async function darkBootNavigationResponse() {
  */
 async function staleWhileRevalidatePage(request) {
   const requestUrl = new URL(request.url);
-  if (stripBase(requestUrl.pathname) === "/login") {
+  if (normalizeAppPath(requestUrl.pathname) === "/login") {
     await purgePrivateData();
   }
   const cache = await caches.open(PAGE_CACHE);
@@ -285,7 +297,9 @@ async function staleWhileRevalidatePage(request) {
 
   // Real navigation, cache miss: never block on the network behind a white
   // WebView. Hand back the dark boot page; it will fetch + replace.
-  if (request.mode === "navigate") {
+  // Only for cacheable app-shell paths — otherwise boot.html location.replace
+  // never hits cache and the tab refresh-cancels in a tight loop.
+  if (request.mode === "navigate" && isAppShellPath(requestUrl.pathname)) {
     void networkPromise;
     return darkBootNavigationResponse();
   }
