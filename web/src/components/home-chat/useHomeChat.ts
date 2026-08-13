@@ -10,7 +10,6 @@ import { captureFrameToJpeg } from "@/lib/home-chat/camera";
 import { generateHomeChatCode, isHomeChatCode, normalizeHomeChatCode } from "@/lib/home-chat/codes";
 import {
   b64UrlToBytes,
-  bytesToB64Url,
   decryptBytes,
   decryptText,
   deriveSessionKey,
@@ -27,6 +26,7 @@ import { encodeHomeChatInvite, parseHomeChatInvite } from "@/lib/home-chat/invit
 import { HomeChatPeer } from "@/lib/home-chat/peer";
 import {
   assemblePhotoChunks,
+  describeHomeChatError,
   encodeControl,
   isControlRaw,
   MAX_TEXT_CHARS,
@@ -39,9 +39,12 @@ import { upsertReaction, type ChatReaction } from "@/lib/home-chat/reactions";
 import { renderInviteQrDataUrl } from "@/lib/home-chat/qr";
 import {
   closeHomeChatRoom,
+  closeHomeChatRoomKeepalive,
+  closeLeftoverHomeChatRoom,
   createHomeChatRoom,
   fetchHomeChatRoom,
   joinHomeChatRoom,
+  peekRememberedHomeChatRoom,
 } from "@/lib/home-chat/signaling";
 import {
   consumeOneTimePhoto,
@@ -97,27 +100,33 @@ export function useHomeChat(displayName: string) {
   const roomIdRef = useRef<string | null>(null);
   const roleRef = useRef<"host" | "guest" | null>(null);
   const assemblersRef = useRef(new Map<string, PhotoAssembler>());
-  const pendingRef = useRef<string[]>([]);
+  const pendingRef = useRef<(string | Uint8Array)[]>([]);
   const stopAdvertiseRef = useRef<(() => void) | null>(null);
   const guestWaitRef = useRef<number | null>(null);
+  const hangingUpRef = useRef(false);
 
   const resetError = useCallback(() => setError(null), []);
 
-  const hangUp = useCallback(async () => {
+  const hangUp = useCallback(async (opts?: { keepalive?: boolean }) => {
+    hangingUpRef.current = true;
     stopAdvertiseRef.current?.();
     stopAdvertiseRef.current = null;
     if (guestWaitRef.current != null) {
       window.clearInterval(guestWaitRef.current);
       guestWaitRef.current = null;
     }
-    const roomId = roomIdRef.current;
+    const roomId = roomIdRef.current ?? peekRememberedHomeChatRoom();
+    roomIdRef.current = null;
     await peerRef.current?.close();
     peerRef.current = null;
     if (roomId) {
-      await closeHomeChatRoom(roomId).catch(() => undefined);
+      if (opts?.keepalive) {
+        closeHomeChatRoomKeepalive(roomId);
+      } else {
+        await closeHomeChatRoom(roomId).catch(() => undefined);
+      }
       await purgeHomeChatPhotos(roomId).catch(() => undefined);
     }
-    roomIdRef.current = null;
     roleRef.current = null;
     sessionKeyRef.current = null;
     assemblersRef.current.clear();
@@ -134,17 +143,16 @@ export function useHomeChat(displayName: string) {
   }, []);
 
   useEffect(() => {
+    void closeLeftoverHomeChatRoom();
     const onLeave = () => {
-      void hangUp();
+      void hangUp({ keepalive: true });
     };
     window.addEventListener("pagehide", onLeave);
+    window.addEventListener("beforeunload", onLeave);
     return () => {
       window.removeEventListener("pagehide", onLeave);
-      stopAdvertiseRef.current?.();
-      if (guestWaitRef.current != null) {
-        window.clearInterval(guestWaitRef.current);
-      }
-      void peerRef.current?.close();
+      window.removeEventListener("beforeunload", onLeave);
+      void hangUp();
     };
   }, [hangUp]);
 
@@ -234,13 +242,14 @@ export function useHomeChat(displayName: string) {
   }, []);
 
   const ingestFrame = useCallback(
-    async (raw: string) => {
+    async (raw: string | Uint8Array) => {
       const sessionKey = sessionKeyRef.current;
       if (!sessionKey) {
         pendingRef.current.push(raw);
         return;
       }
-      const plain = await decryptText(sessionKey, b64UrlToBytes(raw));
+      const payload = typeof raw === "string" ? b64UrlToBytes(raw) : raw;
+      const plain = await decryptText(sessionKey, payload);
       if (!isControlRaw(plain) && plain.includes("\n")) {
         const parsed = parsePhotoChunk(plain);
         const assembler = assemblersRef.current.get(parsed.header.id) ?? {
@@ -274,7 +283,7 @@ export function useHomeChat(displayName: string) {
       throw new Error("Nearby link is not ready.");
     }
     const frame = typeof message === "string" ? message : encodeControl(message);
-    await peer.sendWhenReady(bytesToB64Url(await encryptText(sessionKey, frame)));
+    await peer.sendWhenReady(await encryptText(sessionKey, frame));
   }, []);
 
   const connectPeer = useCallback(
@@ -304,7 +313,9 @@ export function useHomeChat(displayName: string) {
               })();
             }
             if (state === "failed" || state === "disconnected") {
+              if (hangingUpRef.current) return;
               setError("The nearby link dropped. Start a new Home Chat.");
+              void hangUp();
             }
           },
         },
@@ -312,10 +323,11 @@ export function useHomeChat(displayName: string) {
       peerRef.current = peer;
       await peer.start();
     },
-    [displayName, flushPending, ingestFrame, sendControl],
+    [displayName, flushPending, hangUp, ingestFrame, sendControl],
   );
 
   const startHost = useCallback(async () => {
+    hangingUpRef.current = false;
     setError(null);
     setPhase("connecting");
     try {
@@ -353,6 +365,7 @@ export function useHomeChat(displayName: string) {
         })();
       }, 1000);
     } catch (err) {
+      await hangUp();
       setPhase("idle");
       setError(err instanceof Error ? err.message : "Could not start Home Chat.");
     }
@@ -362,6 +375,7 @@ export function useHomeChat(displayName: string) {
     connectPeer,
     ensureKeys,
     flushPending,
+    hangUp,
     setSessionFromPeerKey,
   ]);
 
@@ -369,6 +383,7 @@ export function useHomeChat(displayName: string) {
     async (inviteCode: string, hostPublicKey?: string) => {
       setError(null);
       setCameraMode(null);
+      hangingUpRef.current = false;
       setPhase("connecting");
       try {
         const normalized = normalizeHomeChatCode(inviteCode);
@@ -387,11 +402,12 @@ export function useHomeChat(displayName: string) {
         setPhase("connecting");
         await connectPeer("guest", room.id);
       } catch (err) {
+        await hangUp();
         setPhase("idle");
         setError(err instanceof Error ? err.message : "Could not join Home Chat.");
       }
     },
-    [connectPeer, ensureKeys, setSessionFromPeerKey],
+    [connectPeer, ensureKeys, hangUp, setSessionFromPeerKey],
   );
 
   const sendText = useCallback(async () => {
@@ -443,9 +459,7 @@ export function useHomeChat(displayName: string) {
       } catch (err) {
         setCameraMode(null);
         setError(
-          err instanceof Error
-            ? err.message
-            : "Could not send that photo. Try again.",
+          describeHomeChatError(err, "Could not send that photo. Try again."),
         );
       }
     },

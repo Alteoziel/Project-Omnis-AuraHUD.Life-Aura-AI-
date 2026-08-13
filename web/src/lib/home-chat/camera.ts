@@ -1,8 +1,8 @@
-import { wipeBytes } from "@/lib/home-chat/crypto";
+import { bytesToArrayBuffer, wipeBytes } from "@/lib/home-chat/crypto";
 import { MAX_PHOTO_BYTES } from "@/lib/home-chat/protocol";
 
-const MAX_EDGE = 1280;
-const JPEG_QUALITY = 0.72;
+const MAX_EDGE = 960;
+const JPEG_QUALITY = 0.64;
 
 export async function blobToBytes(blob: Blob): Promise<Uint8Array> {
   return new Uint8Array(await blob.arrayBuffer());
@@ -16,12 +16,6 @@ function jpegDataUrlToBytes(dataUrl: string): Uint8Array {
     out[i] = binary.charCodeAt(i);
   }
   return out;
-}
-
-function bytesToArrayBuffer(bytes: Uint8Array): ArrayBuffer {
-  const buffer = new ArrayBuffer(bytes.byteLength);
-  new Uint8Array(buffer).set(bytes);
-  return buffer;
 }
 
 export async function bytesToJpegBlob(bytes: Uint8Array): Promise<Blob> {

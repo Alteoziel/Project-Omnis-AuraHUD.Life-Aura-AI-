@@ -28,8 +28,22 @@ module.exports = {
         coral: themed("coral"),
       },
       fontFamily: {
-        display: ["var(--font-display)", "Georgia", "serif"],
-        sans: ["var(--font-sans)", "ui-sans-serif", "system-ui", "sans-serif"],
+        display: [
+          "ui-rounded",
+          "Avenir Next",
+          "Segoe UI",
+          "ui-sans-serif",
+          "system-ui",
+          "sans-serif",
+        ],
+        sans: [
+          "ui-sans-serif",
+          "system-ui",
+          "-apple-system",
+          "BlinkMacSystemFont",
+          "Segoe UI",
+          "sans-serif",
+        ],
       },
       backgroundImage: {
         "app-glow": "var(--app-glow)",

@@ -1,22 +1,9 @@
 import type { Metadata, Viewport } from "next";
 import { headers } from "next/headers";
-import { Syne, Source_Sans_3 } from "next/font/google";
 import { RegisterServiceWorker } from "@/components/RegisterServiceWorker";
 import { ThemeInit } from "@/components/ThemeInit";
 import { authCallbackCatchScript } from "@/lib/site-url";
 import "./globals.css";
-
-const display = Syne({
-  subsets: ["latin"],
-  variable: "--font-display",
-  weight: ["500", "600", "700"],
-});
-
-const sans = Source_Sans_3({
-  subsets: ["latin"],
-  variable: "--font-sans",
-  weight: ["400", "600", "700"],
-});
 
 export const metadata: Metadata = {
   title: "AuraHUD",
@@ -154,7 +141,7 @@ export default async function RootLayout({
         />
         <meta name="apple-mobile-web-app-title" content="AuraHUD" />
       </head>
-      <body className={`${display.variable} ${sans.variable} font-sans antialiased`}>
+      <body className="font-sans antialiased">
         <script
           nonce={nonce}
           dangerouslySetInnerHTML={{ __html: bodyThemeScript }}
