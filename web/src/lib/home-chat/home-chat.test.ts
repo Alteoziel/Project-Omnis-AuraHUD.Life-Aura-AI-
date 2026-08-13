@@ -138,6 +138,10 @@ async function main() {
   });
   assert.equal(isHomeChatQuotaError(quota), true);
   assert.match(describeHomeChatError(quota, "fallback"), /too busy for that photo/);
+  assert.equal(
+    isHomeChatQuotaError(new Error("Nearby link is busy. Try the photo again.")),
+    true,
+  );
 
   assert.equal(maskEndpoint("192.168.1.24"), "192.168.×.×");
   assert.equal(maskEndpoint("2001:db8::1"), "IPv6 on this network");

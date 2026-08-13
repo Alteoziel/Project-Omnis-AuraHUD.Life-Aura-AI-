@@ -19,9 +19,9 @@ const ICE_SERVERS: RTCIceServer[] = [
   { urls: "stun:stun.l.google.com:19302" },
 ];
 
-// iPhone SCTP buffers are tiny. Wait until almost empty before each frame.
-const SEND_HIGH_WATER = 2_048;
-const SEND_LOW_WATER = 1_024;
+// iPhone SCTP buffers are tiny. Never send until the previous frame has drained.
+const SEND_HIGH_WATER = 0;
+const SEND_LOW_WATER = 0;
 
 export type HomeChatPeerHandlers = {
   onMessage: (data: string | Uint8Array) => void;
@@ -143,29 +143,30 @@ export class HomeChatPeer {
 
   async sendWhenReady(data: string | Uint8Array): Promise<void> {
     const run = async () => {
-      let lastError: unknown;
-      for (let attempt = 0; attempt < 8; attempt += 1) {
-        if (this.closed) {
+      let delayMs = 40;
+      while (!this.closed) {
+        if (!this.connected) {
           throw new Error("Nearby link is not connected yet.");
         }
-        await this.waitUntilBuffered(attempt === 0 ? SEND_HIGH_WATER : 0);
         try {
+          await this.waitUntilBuffered(SEND_HIGH_WATER);
           this.send(data);
+          if ((this.channel?.bufferedAmount ?? 0) > SEND_HIGH_WATER) {
+            await this.waitUntilBuffered(SEND_HIGH_WATER);
+          }
           return;
         } catch (err) {
-          lastError = err;
-          if (!isHomeChatQuotaError(err)) {
+          if (this.closed || !this.connected) {
+            throw new Error("Nearby link is not connected yet.");
+          }
+          if (!isHomeChatQuotaError(err) && !isBusyLinkError(err)) {
             throw err;
           }
-          await delay(40 * (attempt + 1));
+          await delay(delayMs);
+          delayMs = Math.min(400, delayMs + 40);
         }
       }
-      throw new Error(
-        describeHomeChatError(
-          lastError,
-          "This nearby link is too busy for that photo. Stay in the chat and try again.",
-        ),
-      );
+      throw new Error("Nearby link is not connected yet.");
     };
     const next = this.sendChain.then(run, run);
     this.sendChain = next.then(
@@ -226,7 +227,6 @@ export class HomeChatPeer {
     return new Promise((resolve, reject) => {
       const finish = (err?: Error) => {
         window.clearInterval(poll);
-        window.clearTimeout(timer);
         channel.removeEventListener("bufferedamountlow", onLow);
         if (err) reject(err);
         else resolve();
@@ -240,10 +240,7 @@ export class HomeChatPeer {
           return;
         }
         if (channel.bufferedAmount <= maxAmount) finish();
-      }, 16);
-      const timer = window.setTimeout(() => {
-        finish(new Error("Nearby link is busy. Try the photo again."));
-      }, 12_000);
+      }, 32);
       channel.addEventListener("bufferedamountlow", onLow);
     });
   }
@@ -381,6 +378,12 @@ function decodeChannelData(data: unknown): string | Uint8Array | null {
     return copy;
   }
   return null;
+}
+
+function isBusyLinkError(err: unknown): boolean {
+  if (!err || typeof err !== "object") return false;
+  const message = "message" in err ? String(err.message) : "";
+  return /nearby link is busy/i.test(message) || isHomeChatQuotaError(err);
 }
 
 function delay(ms: number): Promise<void> {

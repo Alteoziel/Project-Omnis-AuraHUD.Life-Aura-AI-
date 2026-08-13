@@ -122,6 +122,8 @@ export function ChatBubble({
           "One-time photo sent"
         ) : item.state === "sending" ? (
           "Sending photo…"
+        ) : item.state === "queued" ? (
+          "Waiting for a clear link…"
         ) : item.state === "receiving" ? (
           "Receiving photo…"
         ) : (

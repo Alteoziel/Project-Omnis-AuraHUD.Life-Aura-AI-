@@ -102,6 +102,7 @@ export function HomeChatApp({ displayName }: { displayName: string }) {
           linkReport={chat.linkReport}
           screenWatch={chat.screenWatch}
           fingerprint={chat.fingerprint}
+          photoSendQueue={chat.photoSendQueue}
         />
       ) : null}
 
@@ -274,6 +275,7 @@ function ChatPanel({
   linkReport,
   screenWatch,
   fingerprint,
+  photoSendQueue,
 }: {
   scrollerRef: RefObject<HTMLUListElement | null>;
   thread: ReturnType<typeof useHomeChat>["thread"];
@@ -286,7 +288,10 @@ function ChatPanel({
   linkReport: ReturnType<typeof useHomeChat>["linkReport"];
   screenWatch: ReturnType<typeof useHomeChat>["screenWatch"];
   fingerprint: string | null;
+  photoSendQueue: ReturnType<typeof useHomeChat>["photoSendQueue"];
 }) {
+  const waiting = photoSendQueue.filter((item) => item.state === "queued").length;
+  const sending = photoSendQueue.some((item) => item.state === "sending");
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <LinkPathPanel
@@ -294,6 +299,17 @@ function ChatPanel({
         screenWatch={screenWatch}
         fingerprint={fingerprint}
       />
+      {photoSendQueue.length > 0 ? (
+        <p className="border-b border-ink-900/10 bg-moss-500/15 px-4 py-2 text-xs font-semibold text-ink-800">
+          {sending
+            ? waiting > 0
+              ? `Sending a photo · ${waiting} waiting for a clear link`
+              : "Sending photo · waiting for a clear link"
+            : waiting === 1
+              ? "1 photo waiting for a clear link"
+              : `${waiting} photos waiting for a clear link`}
+        </p>
+      ) : null}
       <ul
         ref={scrollerRef}
         className="flex-1 space-y-2 overflow-y-auto px-4 py-3"
