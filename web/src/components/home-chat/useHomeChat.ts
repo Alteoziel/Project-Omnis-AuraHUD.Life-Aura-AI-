@@ -12,12 +12,11 @@ import {
   b64UrlToBytes,
   bytesToB64Url,
   decryptBytes,
-  decryptText,
-  deriveSessionKey,
   encryptBytes,
-  encryptText,
   exportPublicKeyB64,
   generateHomeChatKeyPair,
+  generatePhotoKey,
+  importPhotoKey,
   importPublicKeyB64,
   pairingFingerprint,
   wipeBytes,
@@ -26,6 +25,7 @@ import {
 import { encodeHomeChatInvite, parseHomeChatInvite } from "@/lib/home-chat/invite";
 import { describeScreenWatch, type LinkReport } from "@/lib/home-chat/link-report";
 import { HomeChatPeer } from "@/lib/home-chat/peer";
+import { deriveHomeChatRatchet, HomeChatRatchet } from "@/lib/home-chat/ratchet";
 import {
   assemblePhotoChunks,
   describeHomeChatError,
@@ -75,6 +75,7 @@ export type ThreadItem =
 type PhotoAssembler = {
   total: number;
   chunks: Map<number, Uint8Array>;
+  key: CryptoKey | null;
 };
 
 export function useHomeChat(displayName: string) {
@@ -100,12 +101,14 @@ export function useHomeChat(displayName: string) {
 
   const keysRef = useRef<HomeChatKeyPair | null>(null);
   const myPublicKeyRef = useRef<string | null>(null);
-  const sessionKeyRef = useRef<CryptoKey | null>(null);
+  const ratchetRef = useRef<HomeChatRatchet | null>(null);
   const peerRef = useRef<HomeChatPeer | null>(null);
   const roomIdRef = useRef<string | null>(null);
   const roleRef = useRef<"host" | "guest" | null>(null);
   const assemblersRef = useRef(new Map<string, PhotoAssembler>());
   const pendingRef = useRef<(string | Uint8Array)[]>([]);
+  const sendLockRef = useRef(Promise.resolve());
+  const ingestLockRef = useRef(Promise.resolve());
   const stopAdvertiseRef = useRef<(() => void) | null>(null);
   const guestWaitRef = useRef<number | null>(null);
   const hangingUpRef = useRef(false);
@@ -137,7 +140,8 @@ export function useHomeChat(displayName: string) {
       await purgeHomeChatPhotos(roomId).catch(() => undefined);
     }
     roleRef.current = null;
-    sessionKeyRef.current = null;
+    ratchetRef.current?.wipe();
+    ratchetRef.current = null;
     assemblersRef.current.clear();
     pendingRef.current = [];
     const viewing = viewingPhotoRef.current;
@@ -213,12 +217,20 @@ export function useHomeChat(displayName: string) {
     };
   }, []);
 
-  const setSessionFromPeerKey = useCallback(async (peerPublicKey: string) => {
-    const { keys, publicKey } = await ensureKeys();
-    const imported = await importPublicKeyB64(peerPublicKey);
-    sessionKeyRef.current = await deriveSessionKey(keys.privateKey, imported);
-    setFingerprint(await pairingFingerprint(publicKey, peerPublicKey));
-  }, [ensureKeys]);
+  const setSessionFromPeerKey = useCallback(
+    async (peerPublicKey: string, role: "host" | "guest") => {
+      const { keys, publicKey } = await ensureKeys();
+      const imported = await importPublicKeyB64(peerPublicKey);
+      ratchetRef.current?.wipe();
+      ratchetRef.current = await deriveHomeChatRatchet({
+        privateKey: keys.privateKey,
+        peerPublicKey: imported,
+        role,
+      });
+      setFingerprint(await pairingFingerprint(publicKey, peerPublicKey));
+    },
+    [ensureKeys],
+  );
 
   const handleControl = useCallback(async (message: ControlMessage) => {
     if (message.type === "hello") {
@@ -233,9 +245,18 @@ export function useHomeChat(displayName: string) {
       return;
     }
     if (message.type === "photo-meta") {
+      const raw = b64UrlToBytes(message.key);
+      let key: CryptoKey;
+      try {
+        key = await importPhotoKey(raw);
+      } finally {
+        wipeBytes(raw);
+      }
+      const existing = assemblersRef.current.get(message.id);
       assemblersRef.current.set(message.id, {
-        total: 0,
-        chunks: new Map(),
+        total: existing?.total ?? 0,
+        chunks: existing?.chunks ?? new Map(),
+        key,
       });
       setThread((items) =>
         items.some((item) => item.id === message.id)
@@ -250,8 +271,7 @@ export function useHomeChat(displayName: string) {
     if (message.type === "photo-end") {
       const assembler = assemblersRef.current.get(message.id);
       const roomId = roomIdRef.current;
-      const sessionKey = sessionKeyRef.current;
-      if (!assembler || !roomId || !sessionKey) {
+      if (!assembler || !roomId || !assembler.key) {
         setError("A photo arrived incomplete. Ask them to send it again.");
         return;
       }
@@ -260,7 +280,7 @@ export function useHomeChat(displayName: string) {
         const sealed = assemblePhotoChunks(total, assembler.chunks);
         for (const part of assembler.chunks.values()) wipeBytes(part);
         assemblersRef.current.delete(message.id);
-        const plain = await decryptBytes(sessionKey, sealed);
+        const plain = await decryptBytes(assembler.key, sealed);
         wipeBytes(sealed);
         await saveOneTimePhoto({
           id: message.id,
@@ -312,33 +332,49 @@ export function useHomeChat(displayName: string) {
 
   const ingestFrame = useCallback(
     async (raw: string | Uint8Array) => {
-      const sessionKey = sessionKeyRef.current;
-      if (!sessionKey) {
-        pendingRef.current.push(raw);
-        return;
-      }
-      try {
-        const payload = typeof raw === "string" ? b64UrlToBytes(raw) : raw;
-        const plain = await decryptText(sessionKey, payload);
-        if (!isControlRaw(plain) && plain.includes("\n")) {
-          const parsed = parsePhotoChunk(plain);
-          const assembler = assemblersRef.current.get(parsed.header.id) ?? {
-            total: parsed.header.total,
-            chunks: new Map(),
-          };
-          assembler.total = parsed.header.total;
-          assembler.chunks.set(parsed.header.index, parsed.bytes);
-          assemblersRef.current.set(parsed.header.id, assembler);
+      const run = async () => {
+        const ratchet = ratchetRef.current;
+        if (!ratchet) {
+          pendingRef.current.push(raw);
           return;
         }
-        const message = parseControl(plain);
-        if (!message) return;
-        await handleControl(message);
-      } catch {
-        // One bad frame must not stall the rest of the nearby chat.
-      }
+        let plain: string;
+        try {
+          const payload = typeof raw === "string" ? b64UrlToBytes(raw) : raw;
+          plain = await ratchet.openText(payload);
+        } catch {
+          setError("The nearby link lost its encryption lock. Start a new Home Chat.");
+          void hangUp();
+          return;
+        }
+        try {
+          if (!isControlRaw(plain) && plain.includes("\n")) {
+            const parsed = parsePhotoChunk(plain);
+            const assembler = assemblersRef.current.get(parsed.header.id) ?? {
+              total: parsed.header.total,
+              chunks: new Map(),
+              key: null,
+            };
+            assembler.total = parsed.header.total;
+            assembler.chunks.set(parsed.header.index, parsed.bytes);
+            assemblersRef.current.set(parsed.header.id, assembler);
+            return;
+          }
+          const message = parseControl(plain);
+          if (!message) return;
+          await handleControl(message);
+        } catch {
+          // A bad inner frame must not stall the rest of the nearby chat.
+        }
+      };
+      const next = ingestLockRef.current.then(run, run);
+      ingestLockRef.current = next.then(
+        () => undefined,
+        () => undefined,
+      );
+      return next;
     },
-    [handleControl],
+    [handleControl, hangUp],
   );
 
   const flushPending = useCallback(async () => {
@@ -350,15 +386,21 @@ export function useHomeChat(displayName: string) {
   }, [ingestFrame]);
 
   const sendControl = useCallback(async (message: ControlMessage | string) => {
-    const sessionKey = sessionKeyRef.current;
-    const peer = peerRef.current;
-    if (!sessionKey || !peer?.connected) {
-      throw new Error("Nearby link is not ready.");
-    }
-    const frame = typeof message === "string" ? message : encodeControl(message);
-    // iPhone data channels drop or ignore binary frames from desktop Chrome.
-    // Send the same base64 string both old and new clients already decrypt.
-    await peer.sendWhenReady(bytesToB64Url(await encryptText(sessionKey, frame)));
+    const run = async () => {
+      const ratchet = ratchetRef.current;
+      const peer = peerRef.current;
+      if (!ratchet || !peer?.connected) {
+        throw new Error("Nearby link is not ready.");
+      }
+      const frame = typeof message === "string" ? message : encodeControl(message);
+      await peer.sendWhenReady(bytesToB64Url(await ratchet.sealText(frame)));
+    };
+    const next = sendLockRef.current.then(run, run);
+    sendLockRef.current = next.then(
+      () => undefined,
+      () => undefined,
+    );
+    return next;
   }, []);
 
   const connectPeer = useCallback(
@@ -376,7 +418,7 @@ export function useHomeChat(displayName: string) {
             if (state === "channel-open") {
               setPhase("chat");
               void (async () => {
-                if (sessionKeyRef.current) {
+                if (ratchetRef.current) {
                   await sendControl({
                     v: 1,
                     type: "hello",
@@ -429,8 +471,8 @@ export function useHomeChat(displayName: string) {
       guestWaitRef.current = window.setInterval(() => {
         void (async () => {
           const latest = await fetchHomeChatRoom(room.id);
-          if (latest?.guest_public_key && !sessionKeyRef.current) {
-            await setSessionFromPeerKey(latest.guest_public_key);
+          if (latest?.guest_public_key && !ratchetRef.current) {
+            await setSessionFromPeerKey(latest.guest_public_key, "host");
             if (guestWaitRef.current != null) {
               window.clearInterval(guestWaitRef.current);
               guestWaitRef.current = null;
@@ -472,7 +514,7 @@ export function useHomeChat(displayName: string) {
         });
         const peerKey = hostPublicKey || room.host_public_key;
         if (!peerKey) throw new Error("The host pairing key is missing.");
-        await setSessionFromPeerKey(peerKey);
+        await setSessionFromPeerKey(peerKey, "guest");
         setCode(normalized);
         setPhase("connecting");
         await connectPeer("guest", room.id);
@@ -503,8 +545,7 @@ export function useHomeChat(displayName: string) {
 
   const sendPhoto = useCallback(
     async (video: HTMLVideoElement) => {
-      const sessionKey = sessionKeyRef.current;
-      if (!sessionKey) {
+      if (!ratchetRef.current) {
         setError("Nearby link is not ready.");
         return;
       }
@@ -516,8 +557,11 @@ export function useHomeChat(displayName: string) {
           ...items,
           { id, kind: "photo", from: "me", state: "sending", reactions: [] },
         ]);
-        const sealed = await encryptBytes(sessionKey, plain);
+        const { key, raw } = await generatePhotoKey();
+        const sealed = await encryptBytes(key, plain);
         wipeBytes(plain);
+        const photoKey = bytesToB64Url(raw);
+        wipeBytes(raw);
         await sendControl({
           v: 1,
           type: "photo-meta",
@@ -525,6 +569,7 @@ export function useHomeChat(displayName: string) {
           mime: "image/jpeg",
           byteLength: sealed.byteLength,
           oneTime: true,
+          key: photoKey,
         });
         for (const frame of splitPhotoChunks(id, sealed)) {
           await sendControl(frame);

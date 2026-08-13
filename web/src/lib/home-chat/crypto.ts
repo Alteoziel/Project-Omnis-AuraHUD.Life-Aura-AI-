@@ -148,6 +148,28 @@ export async function pairingFingerprint(
   return `${hex.slice(0, 4)}-${hex.slice(4)}`;
 }
 
+export async function generatePhotoKey(): Promise<{
+  key: CryptoKey;
+  raw: Uint8Array;
+}> {
+  const raw = crypto.getRandomValues(new Uint8Array(32));
+  const key = await importPhotoKey(raw);
+  return { key, raw };
+}
+
+export async function importPhotoKey(raw: Uint8Array): Promise<CryptoKey> {
+  if (raw.byteLength !== 32) {
+    throw new Error("Invalid one-time photo key.");
+  }
+  return crypto.subtle.importKey(
+    "raw",
+    bytesToArrayBuffer(raw),
+    { name: "AES-GCM" },
+    false,
+    ["encrypt", "decrypt"],
+  );
+}
+
 export function wipeBytes(bytes: Uint8Array): void {
   if (bytes.byteLength === 0) return;
   crypto.getRandomValues(bytes);
