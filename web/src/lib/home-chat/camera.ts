@@ -89,12 +89,19 @@ export async function openInAppCamera(
   if (!navigator.mediaDevices?.getUserMedia) {
     throw new Error("This device cannot open an in-app camera.");
   }
-  return navigator.mediaDevices.getUserMedia({
-    audio: false,
-    video: {
-      facingMode: { ideal: facingMode },
-      width: { ideal: 1280 },
-      height: { ideal: 1280 },
-    },
-  });
+  const size = {
+    width: { ideal: 1280 },
+    height: { ideal: 1280 },
+  };
+  try {
+    return await navigator.mediaDevices.getUserMedia({
+      audio: false,
+      video: { ...size, facingMode: { exact: facingMode } },
+    });
+  } catch {
+    return navigator.mediaDevices.getUserMedia({
+      audio: false,
+      video: { ...size, facingMode: { ideal: facingMode } },
+    });
+  }
 }

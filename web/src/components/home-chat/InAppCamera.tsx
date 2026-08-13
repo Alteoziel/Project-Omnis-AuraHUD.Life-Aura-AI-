@@ -26,6 +26,9 @@ export function InAppCamera({
   const onCaptureRef = useRef(onCapture);
   const [ready, setReady] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [facing, setFacing] = useState<"environment" | "user">("environment");
+  const [switching, setSwitching] = useState(false);
+  const [flipNote, setFlipNote] = useState<string | null>(null);
 
   useEffect(() => {
     onCloseRef.current = onClose;
@@ -37,7 +40,9 @@ export function InAppCamera({
   useEffect(() => {
     let cancelled = false;
     const start = async () => {
-      const stream = await openInAppCamera("environment");
+      stopMediaStream(streamRef.current);
+      streamRef.current = null;
+      const stream = await openInAppCamera(facing);
       if (cancelled) {
         stopMediaStream(stream);
         return;
@@ -49,8 +54,16 @@ export function InAppCamera({
         await video.play().catch(() => undefined);
         if (video.videoWidth > 0) setReady(true);
       }
+      setSwitching(false);
     };
     void start().catch((err: unknown) => {
+      if (cancelled) return;
+      setSwitching(false);
+      if (facing !== "environment") {
+        setFlipNote("Could not switch to the front camera.");
+        setFacing("environment");
+        return;
+      }
       onErrorRef.current?.(
         err instanceof Error ? err.message : "Could not open the camera.",
       );
@@ -61,7 +74,7 @@ export function InAppCamera({
       stopMediaStream(streamRef.current);
       streamRef.current = null;
     };
-  }, []);
+  }, [facing]);
 
   useEffect(() => {
     if (mode !== "scan") return;
@@ -87,7 +100,7 @@ export function InAppCamera({
     <div className="fixed inset-0 z-[90] bg-ink-950">
       <video
         ref={videoRef}
-        className="h-full w-full object-cover"
+        className={`h-full w-full object-cover ${facing === "user" ? "-scale-x-100" : ""}`}
         playsInline
         muted
         autoPlay
@@ -111,26 +124,51 @@ export function InAppCamera({
       </div>
       {mode === "photo" ? (
         <div className="absolute inset-x-0 bottom-0 flex flex-col items-center gap-3 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
-          <button
-            type="button"
-            disabled={!ready || busy}
-            onClick={() => {
-              const video = videoRef.current;
-              if (!video || !video.videoWidth || busy) return;
-              setBusy(true);
-              void Promise.resolve(onCaptureRef.current?.(video)).finally(() => {
-                setBusy(false);
-              });
-            }}
-            className="h-16 w-16 touch-manipulation rounded-full border-4 border-sand-50 bg-moss-500 shadow-lg disabled:opacity-40"
-            aria-label={actionLabel}
-          />
+          <div className="flex w-full items-center justify-center gap-10 px-8">
+            <button
+              type="button"
+              disabled={!ready || busy || switching}
+              onClick={() => {
+                if (!ready || busy || switching) return;
+                setSwitching(true);
+                setReady(false);
+                setFlipNote(null);
+                setFacing((current) =>
+                  current === "environment" ? "user" : "environment",
+                );
+              }}
+              className="min-h-11 min-w-16 touch-manipulation rounded-full bg-ink-950/55 px-4 py-2 text-sm font-bold text-sand-50 disabled:opacity-40"
+            >
+              Flip
+            </button>
+            <button
+              type="button"
+              disabled={!ready || busy}
+              onClick={() => {
+                const video = videoRef.current;
+                if (!video || !video.videoWidth || busy) return;
+                setBusy(true);
+                void Promise.resolve(onCaptureRef.current?.(video)).finally(() => {
+                  setBusy(false);
+                });
+              }}
+              className="h-16 w-16 touch-manipulation rounded-full border-4 border-sand-50 bg-moss-500 shadow-lg disabled:opacity-40"
+              aria-label={actionLabel}
+            />
+            <span className="min-w-16" aria-hidden />
+          </div>
           <p className="text-xs font-semibold text-sand-50">
-            {!ready
-              ? "Starting camera…"
-              : busy
-                ? "Sending…"
-                : "Tap to send a one-time photo"}
+            {flipNote
+              ? flipNote
+              : !ready
+                ? switching
+                  ? "Switching camera…"
+                  : "Starting camera…"
+                : busy
+                  ? "Sending…"
+                  : facing === "user"
+                    ? "Front camera · tap to send"
+                    : "Tap to send a one-time photo"}
           </p>
         </div>
       ) : null}
