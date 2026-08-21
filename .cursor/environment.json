@@ -1,0 +1,11 @@
+{
+  "name": "AuraHUD (Project Omnis)",
+  "user": "ubuntu",
+  "install": "bash .cursor/install.sh",
+  "terminals": [
+    {
+      "name": "web",
+      "command": "cd web && npm run dev"
+    }
+  ]
+}
