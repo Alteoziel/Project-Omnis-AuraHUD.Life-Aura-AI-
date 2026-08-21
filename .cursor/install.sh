@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
-# Idempotent dependency bootstrap for the AuraHUD (Project Omnis) monorepo.
-# Prepares the three developable components: web/ (Next.js PWA),
-# dashboard/ (Next.js review panel), and governance/ (Python CLI).
+# Idempotent dependency bootstrap for Project Omnis.
+# The product frontend was reset; the security & quality gate remains:
+#   - dashboard/  : Next.js human review panel (Node)
+#   - governance/ : AI Code Guardrail CLI, Steps 1-5 (Python)
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -14,9 +15,6 @@ if ! python3 -c "import ensurepip" >/dev/null 2>&1; then
   sudo apt-get update -qq
   sudo apt-get install -y -qq python3.12-venv
 fi
-
-echo "==> Installing web/ dependencies (npm ci)"
-(cd "$ROOT/web" && npm ci)
 
 echo "==> Installing dashboard/ dependencies (npm ci)"
 (cd "$ROOT/dashboard" && npm ci)

@@ -1,11 +1,11 @@
 {
-  "name": "AuraHUD (Project Omnis)",
+  "name": "Project Omnis",
   "user": "ubuntu",
   "install": "bash .cursor/install.sh",
   "terminals": [
     {
-      "name": "web",
-      "command": "cd web && npm run dev"
+      "name": "dashboard",
+      "command": "cd dashboard && GOVERNANCE_ALLOW_INSECURE_DEV=true npm run dev"
     }
   ]
 }
