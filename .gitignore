@@ -1,9 +1,41 @@
+*$py.class
+build/
+.coverage
+dashboard/.data/
+dashboard/.env.local
+dashboard/.next/
+dashboard/node_modules/
+
+dist/
 .DS_Store
-Thumbs.db
-.idea/
-.vscode/
-*.swp
-*.swo
+*.egg
+*.egg-info/
 .env
-.env.*
+env/
+ENV/
+# Environment and secrets
+.env.*.local
+.env.local
 !.env.example
+# Governance / dashboard
+governance/.venv/
+htmlcov/
+# IDE
+.idea/
+.mypy_cache/
+# OS
+.pr-drafts/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+# Python
+.Python
+.ruff_cache/
+*.so
+*.swo
+*.swp
+# Testing / tooling
+Thumbs.db
+.venv/
+venv/
+.vscode/
