@@ -10,7 +10,7 @@ Python CLI that gates pull requests before they hit `main`.
 | 4 | `governance.steps.benchmark_engine` | Empirical Big-O timing curves |
 | 5 | `governance.steps.copyright_filter` | Rabin-Karp + Levenshtein vs signature DB |
 
-Human review (approve / reject / merge) lives in `/dashboard`. There is **no**
+Human review (approve / reject / merge) lives in [`dashboard/`](../dashboard/). There is **no**
 comprehension quiz in this repository.
 
 ## Install

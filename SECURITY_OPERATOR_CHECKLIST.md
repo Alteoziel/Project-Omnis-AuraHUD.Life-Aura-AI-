@@ -11,16 +11,13 @@ This list is for a **non-expert human operator**. Code and CI automate a lot; th
 
 | Item | Status | Where / what you do |
 |------|--------|---------------------|
-| Alte' Budgeting app (`web/`) | **DONE IN REPO** | Deploy to Vercel; Root Directory `web` |
-| Supabase Auth + RLS schema | **DONE IN REPO** | **YOU** create project, run migration (§5) |
-| Doppler secrets for `web/` | **YOU MUST DO THIS** | Create project secrets + sync to Vercel (§5) |
 | Governance Steps 1–5 (no quiz) | **DONE IN REPO** | Require check on Protect Main (§3) |
 | Enterprise Layers B–E + CodeQL | **DONE IN REPO** | Require checks on Protect Main (§3) |
 | Secret scanning + push protection | **YOU MUST DO THIS** | §1 (confirm enabled) |
 | Pre-commit (ruff + gitleaks) | **DONE IN REPO** | Optional local install §4 |
 | FOSSA license SCA workflow | **DONE IN REPO** (needs secret) | **YOU** create FOSSA account + `FOSSA_API_KEY` (§2) |
 | PR checklist template | **DONE IN REPO** | Fill checkboxes on every PR |
-| Semgrep custom + OWASP packs | **DONE IN REPO** | Nothing |
+| Semgrep custom + OWASP packs | **DONE IN REPO** | Nothing until a JS/TS product tree returns |
 | Review dashboard deploy | **YOU MUST DO THIS** | See `SETUP_GOVERNANCE.md` |
 | Copyright signature DB | **DONE IN REPO** | Optionally add more snippets later |
 
@@ -85,39 +82,7 @@ pre-commit run --all-files
 
 ---
 
-## 5. Runtime secrets for Alte' Budgeting (`web/`) — Doppler (cloud only)
-
-Manage secrets in the **Doppler dashboard** and sync them to **Vercel**. No local CLI, no `.env` files.
-
-| Secret | Required | Notes |
-|--------|----------|-------|
-| `NEXT_PUBLIC_SUPABASE_URL` | Yes | Supabase project URL |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Yes | Publishable anon key (RLS enforced) |
-| `SUPABASE_SECRET_KEY` (or legacy `SUPABASE_SERVICE_ROLE_KEY`) | Yes | Server-only; never ship to client |
-| `APP_SECURITY_SECRET` | Yes | Dedicated random value; do not reuse Supabase keys |
-| `BANK_TOKEN_ENCRYPTION_KEY` | Yes | Dedicated random value; do not reuse `CRON_SECRET` |
-| `CRON_SECRET` | Yes | Bearer for `/api/cron/plaid-sync` |
-| Plaid keys (`PLAID_*`) | If bank sync | From Plaid dashboard |
-
-Flow: Doppler dashboard → set secrets → **Integrations → Vercel** (`dev` / `preview` / `prd`).  
-Key list: [`web/doppler.secrets.example`](web/doppler.secrets.example).
-
-**What “hardening migration” means:** run the SQL files under `supabase/migrations/` on your Supabase project (SQL editor or `supabase db push`). At minimum apply through:
-- `20260725190000_security_authorization_hardening.sql`
-- `20260726010000_publish_security_fixes.sql`
-
-- [ ] Supabase migrations applied (including hardening + publish-security-fixes)
-- [ ] Supabase Realtime **Allow public access** disabled
-- [ ] Supabase Passkeys enabled (Authentication → Passkeys) with correct RP ID/origins
-- [ ] `/auth/callback` allowed in Supabase redirect URLs
-- [ ] Doppler project + secrets created in the dashboard
-- [ ] Doppler → Vercel sync configured for Development / Preview / Production
-- [ ] Vercel project Root Directory = `web`
-- [ ] Protect Main requires **`CodeQL (Layer C)`**
-
----
-
-## 6. Governance dashboard
+## 5. Governance dashboard
 
 Follow [`SETUP_GOVERNANCE.md`](SETUP_GOVERNANCE.md) for Vercel + Upstash + CI secrets.
 

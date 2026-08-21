@@ -41,23 +41,31 @@ jobs:
           import json
           import re
           import sys
+          import tomllib
 
-          DENIED = {"GPL-3.0", "GPL-3.0-only", "GPL-3.0-or-later", "AGPL-3.0", "AGPL-3.0-only", "AGPL-3.0-or-later"}
           DENIED_RE = re.compile(r"(?i)\b(AGPL-3\.0|GPL-3\.0)\b")
-          roots = [
-              Path("web/package.json"),
-              Path("dashboard/package.json"),
-              Path("package.json"),
-          ]
+          SKIP_DIRS = {".git", "node_modules", ".venv", "venv", "dist", "build"}
           issues = []
           found_any = False
-          for path in roots:
-              if not path.is_file():
-                  continue
+
+          def iter_files(name: str):
+              for path in Path(".").rglob(name):
+                  if SKIP_DIRS.intersection(path.parts):
+                      continue
+                  yield path
+
+          def license_text(value) -> str:
+              if isinstance(value, str):
+                  return value
+              if isinstance(value, dict):
+                  return str(value.get("text") or value.get("file") or "")
+              return ""
+
+          for path in iter_files("package.json"):
               found_any = True
               data = json.loads(path.read_text(encoding="utf-8"))
-              license_field = data.get("license") or data.get("licence")
-              if isinstance(license_field, str) and DENIED_RE.search(license_field):
+              license_field = license_text(data.get("license") or data.get("licence"))
+              if license_field and DENIED_RE.search(license_field):
                   issues.append(f"{path}: package license {license_field!r}")
               for section in ("dependencies", "devDependencies", "optionalDependencies", "peerDependencies"):
                   deps = data.get(section) or {}
@@ -68,8 +76,27 @@ jobs:
                       if DENIED_RE.search(blob):
                           issues.append(f"{path}: dependency token looks denied: {blob}")
 
+          for path in iter_files("pyproject.toml"):
+              found_any = True
+              data = tomllib.loads(path.read_text(encoding="utf-8"))
+              project = data.get("project") or {}
+              license_field = license_text(project.get("license"))
+              if license_field and DENIED_RE.search(license_field):
+                  issues.append(f"{path}: project license {license_field!r}")
+              for dep in project.get("dependencies") or []:
+                  if isinstance(dep, str) and DENIED_RE.search(dep):
+                      issues.append(f"{path}: dependency token looks denied: {dep}")
+              optional = project.get("optional-dependencies") or {}
+              if isinstance(optional, dict):
+                  for extra_deps in optional.values():
+                      if not isinstance(extra_deps, list):
+                          continue
+                      for dep in extra_deps:
+                          if isinstance(dep, str) and DENIED_RE.search(dep):
+                              issues.append(f"{path}: dependency token looks denied: {dep}")
+
           if not found_any:
-              print("No package.json manifests found to license-gate.", file=sys.stderr)
+              print("No package.json or pyproject.toml manifests found to license-gate.", file=sys.stderr)
               sys.exit(1)
           if issues:
               print("Denied-license markers found:", file=sys.stderr)
