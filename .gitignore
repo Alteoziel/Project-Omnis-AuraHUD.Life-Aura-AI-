@@ -1,47 +1,9 @@
-
-*$py.class
-build/
-.coverage
-dashboard/.data/
-dashboard/.env.local
-dashboard/.next/
-dashboard/node_modules/
-web/.env.local
-web/.next/
-web/out/
-web/.pages-stash/
-web/node_modules/
-web/tsconfig.tsbuildinfo
-
-dist/
 .DS_Store
-*.egg
-*.egg-info/
-.env
-env/
-ENV/
-# Environment and secrets
-.env.*.local
-.env.local
-# Governance / dashboard
-governance/.venv/
-htmlcov/
-# IDE
-.idea/
-.mypy_cache/
-# OS
-.pr-drafts/
-__pycache__/
-*.py[cod]
-.pytest_cache/
-# Python
-.Python
-.ruff_cache/
-*.so
-*.swo
-*.swp
-# Testing / tooling
 Thumbs.db
-.venv/
-venv/
+.idea/
 .vscode/
+*.swp
+*.swo
+.env
+.env.*
+!.env.example
