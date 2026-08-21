@@ -4,8 +4,7 @@
 
 ## Checklist
 
-- [ ] Product changes under `web/` keep secrets out of the client
-- [ ] Supabase RLS still covers any new tables/queries
-- [ ] No new dependency without lockfile update
-- [ ] Governance Steps 1–5 / Enterprise Layers B–E still green
-- [ ] UI stays mobile-first and easy to use
+- [ ] No secrets, tokens, or credentials committed
+- [ ] No new dependency without lockfile / `pyproject` update
+- [ ] Governance Steps 1–5 / Enterprise Layers B–E / CodeQL still green
+- [ ] Security-relevant paths (`governance/`, `.github/`, `infra/`) stay reviewable

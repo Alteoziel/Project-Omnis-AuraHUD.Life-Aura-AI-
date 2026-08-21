@@ -1,4 +1,3 @@
-
 *$py.class
 build/
 .coverage
@@ -6,12 +5,6 @@ dashboard/.data/
 dashboard/.env.local
 dashboard/.next/
 dashboard/node_modules/
-web/.env.local
-web/.next/
-web/out/
-web/.pages-stash/
-web/node_modules/
-web/tsconfig.tsbuildinfo
 
 dist/
 .DS_Store
@@ -23,6 +16,7 @@ ENV/
 # Environment and secrets
 .env.*.local
 .env.local
+!.env.example
 # Governance / dashboard
 governance/.venv/
 htmlcov/

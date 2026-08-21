@@ -1,6 +1,6 @@
-# Budget App Governance Review Dashboard
+# Governance Review Dashboard
 
-Human review panel for Budget App pull requests. Receives reports from the
+Human review panel for pull requests. Receives reports from the
 Python governance CLI (Steps 1–5: AST → Security → Fuzz → Bench → Copyright)
 and can merge via GitHub’s REST API.
 
