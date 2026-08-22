@@ -4,6 +4,8 @@ This repository is a **clean slate for the product**, with the **security and qu
 
 The previous AuraHUD / Alte’ Budgeting / Home Chat app is gone. Git history still has it if anything needs to be referenced. **Do not start a new product implementation until it has been planned and designed.**
 
+Planning docs for the AuraHUD / Life Aura concept are kept in [`docs/aurahud/`](docs/aurahud/): feature inventory, week-1 demo plan, phased roadmap with testing gates, security model, and the Correction Memory spec.
+
 Security, supply-chain, and code-quality checks stay on every PR.
 
 | Piece | Path | Purpose |
