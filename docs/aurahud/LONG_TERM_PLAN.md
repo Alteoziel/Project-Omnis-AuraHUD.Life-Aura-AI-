@@ -4,6 +4,8 @@
 
 This is the roadmap for growing from a thin, free demo into the full Everyday Life OS — **without** building the dream list before anyone trusts or uses the product.
 
+**Current execution plan:** [`DEMO_BUILD_PLAN.md`](./DEMO_BUILD_PLAN.md) — six polished demos built as separate slices, then evaluated. It supersedes the week-1 sequencing below while these phase gates still apply.
+
 Related docs:
 
 - Week 1 demo: [`WEEK1_DEMO_PLAN.md`](./WEEK1_DEMO_PLAN.md)

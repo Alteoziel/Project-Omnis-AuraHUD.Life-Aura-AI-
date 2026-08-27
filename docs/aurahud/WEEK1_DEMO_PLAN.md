@@ -5,6 +5,8 @@
 **Internal codename:** Project Omnis  
 **Constraint:** Free tiers only · ship a shareable demo that draws people in
 
+> **Superseded for the current phase** by [`DEMO_BUILD_PLAN.md`](./DEMO_BUILD_PLAN.md), which builds six polished demos as independent slices and picks winners on tester evidence. The scope thinking and trust minimums below still stand.
+
 ## What draws people in (demo must prove these)
 
 1. **3-second capture** — speak/type once, see it land, leave the app
