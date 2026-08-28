@@ -1,6 +1,9 @@
 *$py.class
 build/
 .coverage
+web/.env.local
+web/.next/
+web/node_modules/
 dashboard/.data/
 dashboard/.env.local
 dashboard/.next/

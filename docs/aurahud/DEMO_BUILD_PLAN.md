@@ -1,10 +1,11 @@
 # AuraHUD — Polished Demo Build Plan (draft)
 
-**Status:** draft for review · **Scope:** six demos, then pick winners  
+**Status:** draft, owner answers locked · **Scope:** six demos, then rank and keep what works  
 **Public name:** AuraHUD · **AI engine:** Life Aura · **Codename:** Project Omnis
 
 This is the execution plan for building **six polished, self-contained demos**, testing
-them with real people, and only then deciding which ones become the real product.
+them with real people, and ranking which ones deserve to become the real product.
+Several can win. Nothing useful gets cut just to hit a quota.
 
 It supersedes the day-by-day sequencing in [`WEEK1_DEMO_PLAN.md`](./WEEK1_DEMO_PLAN.md)
 for the current phase. The phase gates and long-term shape in
@@ -44,24 +45,48 @@ Do not re-open these while building. If one is wrong, stop and ask.
 | Decision | Choice | Why |
 |---|---|---|
 | App location | New `web/` tree (Next.js App Router, TypeScript, Tailwind) | CI auto-detects `web/package-lock.json` and runs lint, types, tests, build |
-| Rendering | Static export (`output: 'export'`), no server routes | Free hosting, no secrets, nothing to operate |
-| Hosting | GitHub Pages via a workflow | Testers get a URL; no Vercel account or env needed |
+| Rendering | Static export (`output: 'export'`), no server routes | No secrets, nothing to operate; Vercel just hosts the files |
+| Hosting | **Vercel** (Git integration, root directory `web/`) | Preview URL on every PR; production URL for testers. Human links the Vercel project once. |
 | Data | Browser-local only (IndexedDB), append-only event log + derived records | Matches the privacy story, zero backend, instant wipe |
-| Accounts | None | Removes the single biggest drop-off in demo testing |
+| Accounts | None during this phase | Removes the single biggest drop-off in demo testing. Sync/login is a later decision (see §8). |
 | AI | **Deterministic local rules only.** No LLM calls, no API keys | Zero API cost, works offline, nothing to leak |
 | Money / dates / timers | Code, never a model | Product law from the planning docs |
 | Charts | Hand-rolled inline SVG sparkline | Avoids a chart dependency |
 | Motion | CSS transitions honoring `prefers-reduced-motion` | Avoids an animation dependency |
-| OCR | `tesseract.js` in the browser, lazy-loaded on D6 only | No image ever leaves the device |
+| OCR | `tesseract.js` in the browser, lazy-loaded on D6 only; **traineddata + worker/wasm vendored** under `web/public/tesseract/` | Images never leave the device; OCR works offline after first load; no CDN |
+| Voice input | Browser `SpeechRecognition` / `webkitSpeechRecognition` in D1, designed for **Safari then iPhone** | Owner's test devices. See the privacy caveat in S1. |
+| Impulse "hours of work" | Default **$20/hour**, editable, remembered locally | See §2.1 — this is not a salary form |
 | Time-based features | Real durations, plus a visible **Demo speed** switch that compresses them | A 24h cooling period is untestable in a 5-minute demo |
+| Testers | Mix of repeat people and whoever you can grab | Repeat testers measure "would I come back"; new people measure first-impression |
+| After testing | Rank all six. Keep every demo that clears its pass bar. Sequence production work by rank. | Multiple winners is the expected outcome, not a problem |
 
 ### Approved dependencies
 
 `next`, `react`, `react-dom`, `typescript`, `tailwindcss`, `postcss`, `autoprefixer`,
 `eslint`, `eslint-config-next`, `@types/*`, `vitest`, `idb-keyval` (S0), `tesseract.js`
-(S6 only).
+(S4 only).
 
 Anything else requires human approval. `npm audit --audit-level=high` must pass.
+
+### 2.1 Hourly rate, in plain language
+
+The impulse rack's job is to make a "buy this now" urge feel real before you tap checkout.
+One of the ways it does that is translating the price into **time**.
+
+Example: the headphones are $60. If your time is worth about $20 an hour, that is **three
+hours of your life** — a Saturday morning, a shift, a chunk of a workday. "$60" is abstract.
+"Three hours of work" is not.
+
+We are **not** asking for salary, job title, or tax info. One number: "roughly, what is an
+hour of your time worth?" A student, a tipped job, and a salaried job will all pick
+different numbers, and the scare-quote only works if the number is in the right ballpark.
+
+**Locked UX:**
+
+- Ship with **$20/hour** already filled in so the demo works with zero setup.
+- Show the math in one sentence: "At $20/hour, this is about 3 hours of work."
+- A small **Change** control edits the number; it is remembered on this device.
+- Never block the flow on this field. Never call it "salary."
 
 ---
 
@@ -100,9 +125,11 @@ data layer, and a demo picker home.
 
 In scope:
 
-- `web/` scaffold: `package.json`, `tsconfig.json`, `next.config.ts` (static export +
-  base path), Tailwind + PostCSS config, `eslint.config.mjs`, `vitest` config, `npm test`
-  script that runs vitest.
+- `web/` scaffold: `package.json`, `tsconfig.json`, `next.config.ts` (static export, **no
+  GitHub Pages base path** — Vercel serves from `/`), Tailwind + PostCSS config,
+  `eslint.config.mjs`, `vitest` config, `npm test` script that runs vitest, `web/vercel.json`
+  only if a setting is actually required.
+- `.gitignore` entries for `web/.next/`, `web/node_modules/`, `web/.env.local`.
 - Design tokens in `globals.css` + UI primitives: `Button`, `IconButton`, `Card`, `Chip`,
   `Sheet`, `Toast` (with undo), `Skeleton`, `EmptyState`, `Sparkline`.
 - Local store `src/lib/store/`: `schema.ts` (typed records + append-only `events` log),
@@ -112,9 +139,11 @@ In scope:
 - Demo picker home: six cards, each with the one-line problem it solves, plus **Reset
   demo data**, **Seed a week of history**, and the Demo speed switch.
 - PWA: `manifest.webmanifest`, icons, service worker + registration. `[reuse]`
-  `web/src/lib/base-path.ts` and `web/src/components/RegisterServiceWorker.tsx`, and
-  carry the Pages refresh-loop fix from commit `08883bf`.
-- GitHub Pages deploy workflow (`.github/workflows/pages.yml`), build only, no secrets.
+  `web/src/components/RegisterServiceWorker.tsx` and carry the refresh-loop fix from
+  commit `08883bf`. Skip `base-path.ts` unless a subpath is later required.
+- **No GitHub Pages workflow.** Deploy is Vercel Git integration. Human creates or links
+  a Vercel project once with root directory `web/`. Every PR then gets a preview URL
+  automatically. No Vercel token in the repo.
 - `docs/aurahud/DEMO_TEST_SCRIPTS.md` created with the S0 section.
 
 Out of scope: any of the six demo flows.
@@ -123,15 +152,18 @@ File budget: ~28 files (scaffold-heavy; the only slice allowed to be this wide).
 
 Acceptance (human):
 
-1. Pages URL loads on phone and desktop; six cards visible; nothing broken offline after
-   first load.
-2. "Add to Home Screen" installs; the installed app opens without a browser chrome and
-   without a refresh loop.
+1. Vercel preview (and later production) URL loads on Safari desktop and iPhone; six
+   cards visible; nothing broken offline after first load.
+2. "Add to Home Screen" on iPhone installs; the installed app opens without a browser
+   chrome and without a refresh loop.
 3. **Seed a week of history** fills the store; **Reset demo data** empties it; reload
    confirms both persisted.
 4. Toggling **Demo speed** shows a persistent indicator so nobody mistakes it for real
    time.
 5. Dark theme, focus rings, and 44px targets check out; no console errors.
+
+Human setup once (not an agent task): create or link the Vercel project to this repo,
+set the root directory to `web/`, and confirm the first preview URL.
 
 ---
 
@@ -142,8 +174,15 @@ Acceptance (human):
 In scope:
 
 - `CommandBar` — one text field, always focused on open, Enter commits, optimistic insert,
-  toast with undo. Voice via the browser `SpeechRecognition` API **only where supported**,
-  behind graceful feature detection.
+  toast with undo.
+- **Voice input, Safari-first:** a mic button that uses `webkitSpeechRecognition` /
+  `SpeechRecognition`. Tap-to-speak (required user gesture). Feature-detect; if the API
+  is missing or permission is denied, the text field still works and the mic is hidden or
+  disabled with a one-line reason — never a broken button.
+- Honest privacy note next to the mic (one line, skippable): on Safari/iPhone, the
+  **browser** may send audio to Apple to turn speech into text. That is Apple's dictation,
+  not Aura sending your life to a cloud AI. Typed captures never leave the device. Cloud
+  AI stays off.
 - Local intent router `[reuse]` `web/src/lib/aura/intent-router.ts`, with these fixes:
   - Replace the `input.length > 2` catch-all with a **confidence threshold**: anything
     under it lands in a neutral **Captured** bucket instead of being forced into a type.
@@ -169,7 +208,11 @@ Acceptance (human):
    and the chips let you type it in one tap.
 4. ✗ removes the item instantly and shows "Noted — I won't assume that again."
 5. ✎ edits a field inline and the change sticks after reload.
-6. Airplane mode: capture still works; nothing errors.
+6. Airplane mode: **typed** capture still works; nothing errors. Voice may be unavailable
+   offline — that is expected; the mic degrades, typing does not.
+7. On Safari (desktop, then iPhone): tap mic, speak "call the landlord tomorrow", see it
+   land in the stream the same way typed input would. Deny mic permission once and confirm
+   typing still works.
 
 ---
 
@@ -223,9 +266,9 @@ In scope:
 - Capture crossover: "I spent $12 on lunch" from D1 writes a spend; "can I afford takeout"
   answers from code, not a model.
 - **Anti-Regret Impulse Rack:** add an item (paste a link, type a name and price) →
-  cooling timer (real 24h, seconds under Demo speed) → hours-of-work cost from an editable
-  hourly rate → three alternative uses of the money → a devil's-advocate line → **Bought
-  it / Skipped it** resolution.
+  cooling timer (real 24h, seconds under Demo speed) → hours-of-work cost using the
+  remembered hourly rate (default $20, editable, see §2.1) → three alternative uses of
+  the money → a devil's-advocate line → **Bought it / Skipped it** resolution.
 - **Micro-Sacrifice Visualizer:** one aspiration with a target; show "two fewer takeaways
   a week → target reached in N weeks" from arithmetic, and update it live as spends land.
 - **Kept in your account** counter: sum of skipped impulse items, shown on the demo card.
@@ -238,8 +281,9 @@ Acceptance (human):
 
 1. Capture a spend in D1, open D3, see it in the right category with correct math (verify
    by hand; cents must be exact).
-2. Add an impulse item; the timer, hours-of-work figure, and alternatives all read
-   sensibly; Demo speed lets the cooling period expire in seconds.
+2. Add an impulse item; the timer, hours-of-work figure (at $20/hour unless changed), and
+   alternatives all read sensibly; Demo speed lets the cooling period expire in seconds.
+   Changing the hourly rate updates the hours-of-work sentence immediately.
 3. Skipping an item raises **Kept in your account** by exactly the item price.
 4. The micro-sacrifice sentence changes correctly after a new spend.
 5. "Can I afford takeout" gives a deterministic answer you can check.
@@ -257,6 +301,11 @@ In scope:
 - Capture from camera or file picker; image never leaves the device.
 - `tesseract.js` lazy-loaded only on this route, with a real progress state (OCR is slow —
   design for 3–10 seconds, not a spinner).
+- **Vendored OCR assets** under `web/public/tesseract/`: English `tessdata_fast`
+  traineddata plus the worker/wasm files the library needs, so runtime never hits a CDN.
+  Point `langPath` / `workerPath` / `corePath` at those files. Use the fast English model
+  (~4MB), not tessdata-best. Images still never leave the device. Offline OCR must work
+  after first load.
 - Deterministic extractors (pure functions, unit tested) for amount, due date, payee, and
   an **important vs junk** heuristic; every extracted field is shown with ✓ / ✗ / ✎ before
   anything is saved. Nothing auto-commits.
@@ -266,7 +315,7 @@ In scope:
 
 Out of scope: multi-page documents, handwriting, contract/lease analysis, cloud OCR.
 
-File budget: ~10 files.
+File budget: ~12 files (includes vendored OCR assets).
 
 Acceptance (human):
 
@@ -276,7 +325,7 @@ Acceptance (human):
 3. ✗ on a wrong field prevents the save and (via S2) is remembered.
 4. **Add to Now** produces a correctly dated task; **Add to Money** produces the planned
    spend.
-5. Works with the network off after first load.
+5. Works with the network off after first load (vendored model, no CDN).
 
 ---
 
@@ -349,7 +398,7 @@ Acceptance (human):
 
 ### S7 — Demo harness and scorecard
 
-**Goal:** make the "which one wins" decision on evidence, not vibes.
+**Goal:** make ranking honest — numbers and comments from real testers, not vibes.
 
 In scope:
 
@@ -388,7 +437,10 @@ shipped slice, fix it in its own small PR before continuing.
 
 ---
 
-## 6. Evaluation: which demos deserve to be real
+## 6. Evaluation: rank them, keep what works
+
+Multiple demos can win. The old "at most two" cap is gone. The point of ranking is to
+decide **what to productionize first**, not to kill useful features.
 
 ### Hard numbers per demo (from S7 exports)
 
@@ -397,7 +449,7 @@ shipped slice, fix it in its own small PR before continuing.
 | Median time from open to first completed action | under 30s |
 | Unaided completion (no help, no tutorial) | ≥ 80% of testers |
 | "Would you use this tomorrow" (0–10) | median ≥ 7 |
-| Unprompted second use within 48h | ≥ 40% of testers |
+| Unprompted second use within 48h (repeat testers only) | ≥ 40% of that cohort |
 | Demo-specific outcome | D1 captures/day · D2 zero repeat-wrong-claim reports · D3 dollars skipped · D4 escalated-task completion rate · D5 "that's true" rate · D6 fields correct per bill |
 
 ### Judgement scores (owner, 0–5 each)
@@ -407,14 +459,31 @@ and cost to take from demo to production.
 
 ### Protocol
 
-- Minimum six testers plus the owner. Each tester does **three of the six** demos in a
-  randomized order, five minutes each, with no tutorial and no coaching.
-- The owner dogfoods **all six** for ten consecutive days and logs every failure: wrong
-  parse, slow path, confusing copy, privacy surprise.
-- Then: promote **at most two** demos to real product work. Park or cut the rest — no
-  zombie modules.
-- "All six underperform" is a legitimate outcome and means the shell or the pitch is
-  wrong, not that more modules are needed.
+Two kinds of testers, both valuable:
+
+- **New people** (walk-ups, one session): first impression and unaided completion. They
+  can do **one demo** if that is all the time they have. No tutorial, no coaching.
+- **Repeat people** (the same few across days): do they come back, and do they still like
+  it after novelty fades. Aim for them to try **all six** over time, in whatever order
+  is natural.
+
+No fixed roster size. Recruit whenever you can. Keep going until each demo has been
+through at least a handful of unaided first sessions **and** some repeat use.
+
+The owner dogfoods **all six** for ten consecutive days and logs every failure: wrong
+parse, slow path, confusing copy, privacy surprise.
+
+### What happens after the numbers
+
+1. **Rank** all six by pull + outcome, not by how fun they were to build.
+2. **Keep** every demo that clears its pass bars. Several winners is the expected outcome.
+   They stay as lenses on one HUD, not six separate apps.
+3. **Park** only what fails: confusing, unused, or trust-breaking. No zombie modules.
+4. **Sequence production work by rank.** First-place gets accounts/sync/polish first.
+   Second-place is next. Nothing that passed waits forever, and nothing that failed jumps
+   the line.
+5. **"All six underperform"** is still a legitimate outcome and means the shell or the
+   pitch is wrong, not that more modules are needed.
 
 ---
 
@@ -424,22 +493,29 @@ and cost to take from demo to production.
 |---|---|
 | Six polished demos is a lot of surface with no local build loop | Strict slice budgets, CI as the compiler, shared primitives from S0, one screen per demo |
 | iOS PWA notification and background limits could gut D4 | In-app ladder works without permissions; owner tests on-device early; native decision deferred until D4 proves pull |
+| Safari/iPhone speech recognition is flaky and may send audio to Apple | Mic is tap-to-speak; typed capture is the reliable path; one-line privacy note; degrade if permission denied |
 | OCR accuracy on real mail is uneven | Never auto-commit; show unsure fields; ✗ is one tap; bundled samples for fallback |
 | Correction Memory over-blocking (the pre-reset defect) | Scoped constraints, entity equality matching, visible editable list, unit tests for both directions |
-| Tesseract model assets are large | Load model assets from CDN by default (no user image leaves the device) — vendoring into the repo needs human approval first |
+| Vendored Tesseract assets add repo weight | Use tessdata_fast English only (~4MB); never tessdata-best; keep assets under `web/public/tesseract/` |
 | Demo speed could mislead testers | Persistent indicator whenever it is on; never on by default |
 | Capture-bar market is crowded | D1 is judged on the *output* half (the single Now answer and the exit), not on capture alone |
 
 ---
 
-## 8. Open questions for the human
+## 8. Locked answers (was: open questions)
 
-1. **Hosting:** GitHub Pages (assumed here) or Vercel? Pages needs to be enabled once in
-   repo settings.
-2. **Tesseract assets:** CDN-loaded model (default) or vendored into the repo (~4MB+)?
-3. **Voice input:** ship browser speech recognition in D1 even though it is inconsistent
-   across browsers, or keep D1 text-only for a cleaner comparison?
-4. **Hourly rate for the impulse rack:** ask the tester once, or ship a fixed default?
-5. **Tester recruiting:** the same six people across all demos, or a fresh set per demo?
-6. **After the picks:** do the two winners get rebuilt on accounts and sync, or stay
-   local-first with export/import as the sync story?
+| # | Question | Answer |
+|---|---|---|
+| 1 | Hosting | **Vercel.** Human links the project once, root directory `web/`. Preview URLs on every PR. |
+| 2 | Tesseract assets | **Vendored** into `web/public/tesseract/` (fast English model + worker/wasm). No CDN. |
+| 3 | Voice | **Ship it in D1**, Safari-first then iPhone. Typed capture remains the fallback. |
+| 4 | Hourly rate | **Default $20/hour**, editable, remembered. Not a salary form. See §2.1. |
+| 5 | Testers | **Both:** a few repeat people plus new people whenever you can grab them. |
+| 6 | How many winners / what after | **Several can win.** Rank, keep every pass, sequence production by rank. Login and sync stay **undecided** until after testing — demos stay on-device until then. |
+
+The original question 6 was actually two different things jammed together. Restated:
+
+- **"How many features survive?"** — as many as clear the bar. No artificial cap of two.
+- **"Do winners get accounts and cloud sync, or stay on the phone?"** — not decided yet.
+  The demos themselves stay local-first (no login). After ranking, we choose whether the
+  keepers need sync across devices. That is a later conversation, not a build blocker.

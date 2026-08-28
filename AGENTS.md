@@ -119,7 +119,7 @@ Useful prior art (each plan slice lists what to pull):
 | `web/src/lib/aura/corrections.ts` | Correction constraint parsing |
 | `web/src/lib/aura/capture-flow.ts` | Capture → route → persist → receipt flow |
 | `web/src/components/aura/*` | Command bar, Today Stream, cloud-AI toggle, nudge |
-| `web/src/lib/base-path.ts` | GitHub Pages base-path handling |
+| `web/src/lib/base-path.ts` | Only if a URL subpath is later required (Vercel root deploy does not need this) |
 | `web/src/components/RegisterServiceWorker.tsx` | Service worker registration (see the Pages refresh-loop fix in `08883bf`) |
 | `web/src/lib/crypto/secrets.ts` | Client crypto helpers |
 
