@@ -52,6 +52,7 @@ export type ImpulseRecord = {
   title: string;
   amountCents: number;
   status: "cooling" | "bought" | "skipped";
+  coolingUntil: number;
   createdAt: number;
 };
 
@@ -210,6 +211,7 @@ export function buildSeedState(nowMs: number): AuraState {
         title: "Wireless headphones",
         amountCents: 7900,
         status: "skipped",
+        coolingUntil: 0,
         createdAt: nowMs - 3 * 86400000,
       },
     ],

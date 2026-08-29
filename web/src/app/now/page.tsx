@@ -53,9 +53,20 @@ export default function NowPage() {
     const previous = state;
     const routed = routeIntentLocal(text, constraints, new Date(now()));
     const task = intentToTask(routed, now());
+    const spend =
+      routed.kind === "budget_note" && routed.amountCents != null
+        ? {
+            id: newId(),
+            title: routed.title,
+            amountCents: routed.amountCents,
+            category: "uncategorized",
+            at: now(),
+          }
+        : null;
     setState({
       ...state,
       tasks: [task, ...state.tasks],
+      spends: spend ? [spend, ...state.spends] : state.spends,
       events: [
         {
           id: newId(),

@@ -32,16 +32,11 @@ const DEMOS: Array<{
     href: "/life-model",
   },
   {
-    id: "life-model",
-    kicker: "D2",
-    title: "Life Model",
-    problem: "Correct Aura once. It stays corrected — and you can see what it believes.",
-  },
-  {
     id: "money",
     kicker: "D3",
     title: "Money",
     problem: "Stop the leak. Block the regret buy. Keep a dollar number you believe.",
+    href: "/money",
   },
   {
     id: "follow-through",

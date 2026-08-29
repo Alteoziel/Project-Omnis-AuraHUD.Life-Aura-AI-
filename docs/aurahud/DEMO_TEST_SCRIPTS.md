@@ -77,4 +77,16 @@ URL: `/life-model`.
 4. Delete the row in Life Model. Capture the original phrasing again: the old guess can return.
 5. Reload: rows are still there until you delete them.
 
+---
+
+## S3 — Money
+
+URL: `/money`.
+
+1. Capture `I spent $12 on lunch` in Now. Open Money. Uncategorized (or dining) includes $12.00 exactly.
+2. Add an impulse. Hours-of-work uses $20/hour unless you change it. Change the rate; the hours sentence updates.
+3. Turn **Demo speed** on. Cooling expires in seconds. **Skipped it** raises **Kept in your account** by the item price.
+4. Micro-sacrifice sentence is checkable: 2 × $22 / week toward $800.
+5. Reload: spends, impulses, and rate persist.
+
 
