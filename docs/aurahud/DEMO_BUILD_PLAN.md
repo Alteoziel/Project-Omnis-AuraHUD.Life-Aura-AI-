@@ -59,6 +59,7 @@ Do not re-open these while building. If one is wrong, stop and ask.
 | Time-based features | Real durations, plus a visible **Demo speed** switch that compresses them | A 24h cooling period is untestable in a 5-minute demo |
 | Testers | Mix of repeat people and whoever you can grab | Repeat testers measure "would I come back"; new people measure first-impression |
 | After testing | Rank all six. Keep every demo that clears its pass bar. Sequence production work by rank. | Multiple winners is the expected outcome, not a problem |
+| Visual theme | **Night Flash** — true-black canvas, magenta flash, ice accent, Syne display + Outfit UI | Social-app energy (stories, full-bleed, tight type) without copying Instagram or Snapchat |
 
 ### Approved dependencies
 
