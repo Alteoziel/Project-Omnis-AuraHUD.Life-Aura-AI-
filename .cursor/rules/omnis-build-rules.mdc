@@ -1,0 +1,38 @@
+---
+description: Hard build constraints for Project Omnis — model, subagents, no local builds/tests, human-only frontend testing, usage discipline
+alwaysApply: true
+---
+
+# Project Omnis — hard build constraints
+
+Full detail: `AGENTS.md` (repo root). Current plan: `docs/aurahud/DEMO_BUILD_PLAN.md`.
+
+These five constraints apply to every session that builds anything in this repo:
+
+1. **Grok 4.6 High (non-fast) only.** No `-fast` variant, no other model family. If you
+   are running as a different model, stop and tell the human to re-run on Grok 4.6 High
+   rather than proceeding.
+2. **No subagents.** Never spawn subagents, background agents, or parallel agent runs —
+   not for exploration, research, debugging, review, or testing. Work sequentially in the
+   main session.
+3. **Never build or test on the environment computer.** No `npm install`/`ci`/`build`/
+   `dev`/`test`, no `npx tsc`, no `pytest`, no linters, no dev servers, no browser
+   automation, no computer use, no screenshots or screen recordings. CI
+   (`.github/workflows/enterprise-hygiene.yml`) is the compiler: push and read CI, and if
+   a check fails read only the failing step with `gh run view --log-failed`.
+4. **Humans own all frontend testing.** Never assert that UI works from inspection alone.
+   Every product PR ships a numbered, copy-pasteable test script with expected results
+   and target device, appended to `docs/aurahud/DEMO_TEST_SCRIPTS.md`. No walkthrough
+   videos, screenshots, or GUI artifacts.
+5. **Usage discipline.** One plan slice = one branch = one PR. Read only the files the
+   slice names. No repo-wide refactors, no speculative abstraction, no unapproved
+   dependencies. Restore known-good code from history (commit `19e71e7`) instead of
+   rewriting it. If a slice outgrows its file budget, stop and ask.
+
+Product guardrails that hold during the demo phase: cloud AI stays off (deterministic
+local rules only, no API keys, no AI network calls); data is browser-local (no Supabase,
+no accounts) and wipeable from the UI; money, dates, and timers are code, never a model;
+a rejected interpretation is never silently re-asserted; no analytics that exfiltrate
+content.
+
+Never disable, weaken, or skip a governance check to make a PR go green.

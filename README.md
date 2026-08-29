@@ -6,6 +6,8 @@ The previous AuraHUD / Alte’ Budgeting / Home Chat app is gone. Git history st
 
 Planning docs for the AuraHUD / Life Aura concept are kept in [`docs/aurahud/`](docs/aurahud/): feature inventory, week-1 demo plan, phased roadmap with testing gates, security model, and the Correction Memory spec.
 
+The current execution plan is [`docs/aurahud/DEMO_BUILD_PLAN.md`](docs/aurahud/DEMO_BUILD_PLAN.md) — six polished demos, then rank and keep what works. Slice S0 (foundation shell) lives in [`web/`](web/). Build constraints for every agent session (model, no subagents, no environment builds or tests, human-only frontend testing, usage discipline) are in [`AGENTS.md`](AGENTS.md).
+
 Security, supply-chain, and code-quality checks stay on every PR.
 
 | Piece | Path | Purpose |

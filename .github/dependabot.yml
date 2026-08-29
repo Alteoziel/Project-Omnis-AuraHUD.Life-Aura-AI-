@@ -19,6 +19,15 @@ updates:
       - dependencies
       - layer-b
 
+  - package-ecosystem: npm
+    directory: "/web"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 10
+    labels:
+      - dependencies
+      - layer-b
+
   - package-ecosystem: github-actions
     directory: "/"
     schedule:
