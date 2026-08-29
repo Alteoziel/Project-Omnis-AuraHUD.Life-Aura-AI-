@@ -1,7 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { emptyState } from "./schema.ts";
-import { buildSeedState, countSeededItems } from "./seed.ts";
+import { buildSeedState, countSeededItems, emptyState } from "./schema.ts";
 
 describe("seed", () => {
   it("starts empty with a $20 hourly rate", () => {
