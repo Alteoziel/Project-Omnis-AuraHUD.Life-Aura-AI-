@@ -12,11 +12,10 @@ export function CommandBar({
   const inputRef = useRef<HTMLInputElement>(null);
   const [value, setValue] = useState("");
   const [listening, setListening] = useState(false);
-  const [speech, setSpeech] = useState<"ok" | "missing" | "denied">("ok");
+  const [speechNote, setSpeechNote] = useState<"idle" | "denied" | "missing">("idle");
 
   useEffect(() => {
     inputRef.current?.focus();
-    if (!getSpeechRecognition()) setSpeech("missing");
   }, []);
 
   function submit(text: string) {
@@ -30,7 +29,7 @@ export function CommandBar({
   function startVoice() {
     const rec = getSpeechRecognition();
     if (!rec) {
-      setSpeech("missing");
+      setSpeechNote("missing");
       return;
     }
     rec.lang = "en-US";
@@ -41,7 +40,7 @@ export function CommandBar({
       if (said) submit(said);
     };
     rec.onerror = () => {
-      setSpeech("denied");
+      setSpeechNote("denied");
       setListening(false);
     };
     rec.onend = () => setListening(false);
@@ -49,7 +48,7 @@ export function CommandBar({
       rec.start();
       setListening(true);
     } catch {
-      setSpeech("denied");
+      setSpeechNote("denied");
     }
   }
 
@@ -70,28 +69,28 @@ export function CommandBar({
           aria-label="Capture"
           className="min-h-tap min-w-0 flex-1 bg-transparent text-base text-white outline-none placeholder:text-muted"
         />
-        {speech === "missing" ? null : (
-          <IconButton
-            type="button"
-            label={listening ? "Listening" : "Speak"}
-            onClick={startVoice}
-            className={listening ? "border-flash text-flash" : undefined}
-          >
-            {listening ? (
-              <span className="h-2 w-2 rounded-full bg-flash" />
-            ) : (
-              <svg viewBox="0 0 24 24" className="h-5 w-5" aria-hidden="true">
-                <path
-                  fill="currentColor"
-                  d="M12 14a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v5a3 3 0 0 0 3 3Zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.9V21h2v-3.1A7 7 0 0 0 19 11h-2Z"
-                />
-              </svg>
-            )}
-          </IconButton>
-        )}
+        <IconButton
+          type="button"
+          label={listening ? "Listening" : "Speak"}
+          onClick={startVoice}
+          className={listening ? "border-flash text-flash" : undefined}
+        >
+          {listening ? (
+            <span className="h-2 w-2 rounded-full bg-flash" />
+          ) : (
+            <svg viewBox="0 0 24 24" className="h-5 w-5" aria-hidden="true">
+              <path
+                fill="currentColor"
+                d="M12 14a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v5a3 3 0 0 0 3 3Zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.9V21h2v-3.1A7 7 0 0 0 19 11h-2Z"
+              />
+            </svg>
+          )}
+        </IconButton>
       </div>
-      {speech === "denied" ? (
+      {speechNote === "denied" ? (
         <p className="mt-2 text-xs text-muted">Mic is off. Typing still works.</p>
+      ) : speechNote === "missing" ? (
+        <p className="mt-2 text-xs text-muted">Voice is not available here. Typing still works.</p>
       ) : (
         <p className="mt-2 text-xs text-muted">
           On iPhone, Safari may send audio to Apple to turn speech into text. Typed
