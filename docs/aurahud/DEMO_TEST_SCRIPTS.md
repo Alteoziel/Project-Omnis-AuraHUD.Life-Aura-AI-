@@ -65,3 +65,16 @@ URL: `/now` (also the **Now** card on the home picker). Safari desktop, then iPh
 7. Safari/iPhone: tap mic, speak `call the landlord tomorrow`, see it land. Deny mic once: typing still works. The one-line Apple-dictation note is visible.
 8. **Done for now** returns to the picker.
 
+---
+
+## S2 — Life Model
+
+URL: `/life-model`.
+
+1. In Now, ✗ a wrong parse. Open Life Model. The row explains the rejection in plain language and shows the original capture.
+2. Capture the same phrasing in Now: it does not repeat the wrong claim.
+3. Capture something similar but different: it still routes.
+4. Delete the row in Life Model. Capture the original phrasing again: the old guess can return.
+5. Reload: rows are still there until you delete them.
+
+

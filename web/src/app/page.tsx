@@ -29,6 +29,13 @@ const DEMOS: Array<{
     kicker: "D2",
     title: "Life Model",
     problem: "Correct Aura once. It stays corrected — and you can see what it believes.",
+    href: "/life-model",
+  },
+  {
+    id: "life-model",
+    kicker: "D2",
+    title: "Life Model",
+    problem: "Correct Aura once. It stays corrected — and you can see what it believes.",
   },
   {
     id: "money",

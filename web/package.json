@@ -8,7 +8,7 @@
     "build": "next build --webpack",
     "start": "next start",
     "lint": "eslint .",
-    "test": "node --experimental-strip-types --test src/lib/demoClock.test.ts src/lib/store/seed.test.ts src/lib/aura/parseDate.test.ts src/lib/aura/parseMoney.test.ts src/lib/aura/intent-router.test.ts"
+    "test": "node --experimental-strip-types --test src/lib/demoClock.test.ts src/lib/store/seed.test.ts src/lib/aura/parseDate.test.ts src/lib/aura/parseMoney.test.ts src/lib/aura/intent-router.test.ts src/lib/aura/lifeModel.test.ts"
   },
   "dependencies": {
     "@upstash/redis": "^1.38.2",
