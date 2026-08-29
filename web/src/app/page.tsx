@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useStore } from "@/components/StoreProvider";
 import { Sheet } from "@/components/ui/Sheet";
 import { Sparkline } from "@/components/ui/Sparkline";
@@ -14,12 +15,14 @@ const DEMOS: Array<{
   kicker: string;
   title: string;
   problem: string;
+  href?: string;
 }> = [
   {
     id: "now",
     kicker: "D1",
     title: "Now",
     problem: "Get it out of your head in 3 seconds, then do the one thing that matters.",
+    href: "/now",
   },
   {
     id: "life-model",
@@ -142,14 +145,25 @@ export default function HomePage() {
             className="animate-rise"
             style={{ animationDelay: `${index * 40}ms` }}
           >
-            <article className="rounded-card border border-white/10 bg-white/[0.03] p-5">
-              <div className="flex items-center justify-between">
-                <Chip>{demo.kicker}</Chip>
-                <span className="text-xs uppercase tracking-[0.16em] text-muted">Next</span>
-              </div>
-              <h2 className="mt-4 font-display text-3xl text-white">{demo.title}</h2>
-              <p className="mt-2 text-sm leading-6 text-muted">{demo.problem}</p>
-            </article>
+            {demo.href ? (
+              <Link href={demo.href} className="block rounded-card border border-white/10 bg-white/[0.03] p-5">
+                <div className="flex items-center justify-between">
+                  <Chip>{demo.kicker}</Chip>
+                  <span className="text-xs uppercase tracking-[0.16em] text-ice">Open</span>
+                </div>
+                <h2 className="mt-4 font-display text-3xl text-white">{demo.title}</h2>
+                <p className="mt-2 text-sm leading-6 text-muted">{demo.problem}</p>
+              </Link>
+            ) : (
+              <article className="rounded-card border border-white/10 bg-white/[0.03] p-5">
+                <div className="flex items-center justify-between">
+                  <Chip>{demo.kicker}</Chip>
+                  <span className="text-xs uppercase tracking-[0.16em] text-muted">Next</span>
+                </div>
+                <h2 className="mt-4 font-display text-3xl text-white">{demo.title}</h2>
+                <p className="mt-2 text-sm leading-6 text-muted">{demo.problem}</p>
+              </article>
+            )}
           </li>
         ))}
       </ol>

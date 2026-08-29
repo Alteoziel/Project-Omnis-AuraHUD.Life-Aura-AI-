@@ -21,7 +21,11 @@ export type TaskRecord = {
   title: string;
   dueOn: string | null;
   priority: number;
-  status: "open" | "done" | "skipped";
+  status: "open" | "done" | "skipped" | "captured";
+  kind: "task" | "reminder" | "budget_note" | "unclear";
+  notes: string;
+  amountCents: number | null;
+  sourceText: string;
   createdAt: number;
 };
 
@@ -39,6 +43,7 @@ export type CorrectionRecord = {
   rejectedOutput: string;
   actionType: string;
   status: "rejected_unspecified" | "corrected";
+  constraints: Array<{ type: string; value: string; actionType: string }>;
   createdAt: number;
 };
 
@@ -127,6 +132,10 @@ export function buildSeedState(nowMs: number): AuraState {
         dueOn: isoDaysAgo(nowMs, -1),
         priority: 2,
         status: "open",
+        kind: "task",
+        notes: "",
+        amountCents: null,
+        sourceText: "call the landlord tomorrow",
         createdAt: nowMs - 2 * 86400000,
       },
       {
@@ -135,6 +144,10 @@ export function buildSeedState(nowMs: number): AuraState {
         dueOn: isoDaysAgo(nowMs, 0),
         priority: 3,
         status: "open",
+        kind: "task",
+        notes: "",
+        amountCents: null,
+        sourceText: "send Sam the notes today",
         createdAt: nowMs - 86400000,
       },
       {
@@ -143,6 +156,10 @@ export function buildSeedState(nowMs: number): AuraState {
         dueOn: null,
         priority: 4,
         status: "done",
+        kind: "task",
+        notes: "",
+        amountCents: null,
+        sourceText: "pick up the prescription",
         createdAt: nowMs - 3 * 86400000,
       },
     ],
@@ -183,6 +200,7 @@ export function buildSeedState(nowMs: number): AuraState {
         rejectedOutput: "Coffee",
         actionType: "budget_note",
         status: "corrected",
+        constraints: [],
         createdAt: nowMs - 86400000,
       },
     ],

@@ -47,6 +47,21 @@ URL: the Vercel preview for the `web/` app (root `/`).
 
 ### Expected gaps in S0
 
-- Demo cards do not navigate yet.
-- Voice, capture, budget, OCR, escalation, and digest are not built.
+- D1 Now is in S1. Other demo cards still say Next.
 - App icons may still use the previous PNG set; SVGs are the new Night Flash mark.
+
+---
+
+## S1 — Now (capture → Today Stream)
+
+URL: `/now` (also the **Now** card on the home picker). Safari desktop, then iPhone.
+
+1. From a cold open, type `call the landlord tomorrow` and press Enter. It appears instantly and lands in **Next** (or **Now** if nothing else is due) with tomorrow's date.
+2. Type `I spent $12 on lunch`. An amount of $12.00 is shown. No category is invented.
+3. Type `that thing about Sam`. It lands in **Captured**, not as a wrong task. Use **Task / Reminder / Spend** chips to type it.
+4. Tap **✗** on a wrong item. It disappears immediately. Toast: **Noted — I won't assume that again.** Capture the same phrase again: it should land in Captured, not confidently repeat.
+5. Tap **✎**, change the title, Save. Reload: the edit is still there.
+6. Airplane mode: **typed** capture still works.
+7. Safari/iPhone: tap mic, speak `call the landlord tomorrow`, see it land. Deny mic once: typing still works. The one-line Apple-dictation note is visible.
+8. **Done for now** returns to the picker.
+
