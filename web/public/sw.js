@@ -1,5 +1,5 @@
 /* AuraHUD service worker — static shell, no boot-loop replace. */
-const VERSION = "s0-v1";
+const VERSION = "s0-v2";
 const STATIC_CACHE = `aura-static-${VERSION}`;
 const PAGE_CACHE = `aura-pages-${VERSION}`;
 
@@ -42,6 +42,9 @@ self.addEventListener("activate", (event) => {
 });
 
 self.addEventListener("message", (event) => {
+  if (event.origin !== self.location.origin) {
+    return;
+  }
   if (event.data === "SKIP_WAITING") {
     self.skipWaiting();
   }
