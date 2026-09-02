@@ -1,4 +1,10 @@
-import { emptyState, type AuraState, type MetricRecord, type DemoId } from "./schema";
+import {
+  emptyState,
+  hydrateState,
+  type AuraState,
+  type MetricRecord,
+  type DemoId,
+} from "./schema";
 
 const DB_NAME = "aurahud";
 const STORE_NAME = "kv";
@@ -28,7 +34,7 @@ export async function loadState(nowMs: number): Promise<AuraState> {
       req.onerror = () => reject(req.error);
     });
     db.close();
-    if (state && state.version === 1) return state;
+    if (state && state.version === 1) return hydrateState(state);
   } catch {
     // First visit or private-mode IDB denial — stay in memory.
   }

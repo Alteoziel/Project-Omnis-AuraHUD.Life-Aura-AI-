@@ -71,6 +71,34 @@ export type MetricRecord = {
   at: number;
 };
 
+export type FollowThroughState = {
+  muted: boolean;
+  quietEnabled: boolean;
+  quietStartMin: number;
+  quietEndMin: number;
+  skipUsedOn: string | null;
+  score: number;
+  watchingId: string | null;
+  startedAt: number | null;
+  snoozedUntil: number | null;
+  lastAnnouncedRung: number;
+};
+
+export function defaultFollowThrough(): FollowThroughState {
+  return {
+    muted: false,
+    quietEnabled: false,
+    quietStartMin: 22 * 60,
+    quietEndMin: 8 * 60,
+    skipUsedOn: null,
+    score: 50,
+    watchingId: null,
+    startedAt: null,
+    snoozedUntil: null,
+    lastAnnouncedRung: 0,
+  };
+}
+
 export type AuraState = {
   version: 1;
   clock: {
@@ -87,7 +115,18 @@ export type AuraState = {
   impulses: ImpulseRecord[];
   mail: MailRecord[];
   metrics: MetricRecord[];
+  followThrough: FollowThroughState;
 };
+
+export function hydrateState(state: AuraState): AuraState {
+  return {
+    ...state,
+    followThrough: {
+      ...defaultFollowThrough(),
+      ...(state.followThrough ?? defaultFollowThrough()),
+    },
+  };
+}
 
 export const DEFAULT_HOURLY_RATE_CENTS = 2000;
 
@@ -108,6 +147,7 @@ export function emptyState(nowMs: number): AuraState {
     impulses: [],
     mail: [],
     metrics: [],
+    followThrough: defaultFollowThrough(),
   };
 }
 

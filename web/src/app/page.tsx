@@ -43,6 +43,7 @@ const DEMOS: Array<{
     kicker: "D4",
     title: "Follow-through",
     problem: "Captured intentions actually get done. The nag backs off as you do.",
+    href: "/follow-through",
   },
   {
     id: "digest",

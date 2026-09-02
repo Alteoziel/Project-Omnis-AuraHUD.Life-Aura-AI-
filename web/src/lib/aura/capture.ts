@@ -1,4 +1,5 @@
-import type { RoutedIntent } from "@/lib/aura/intent-router";
+import type { RoutedIntent } from "./intent-router";
+import { pinFirst } from "./escalation";
 import { newId } from "@/lib/store/db";
 import type { TaskRecord } from "@/lib/store/schema";
 
@@ -33,9 +34,14 @@ function score(task: TaskRecord, today: string): number {
   return value;
 }
 
-export function rankOpen(tasks: TaskRecord[], today: string): TaskRecord[] {
-  return tasks
+export function rankOpen(
+  tasks: TaskRecord[],
+  today: string,
+  pinnedId?: string | null,
+): TaskRecord[] {
+  const ranked = tasks
     .filter((task) => task.status === "open")
     .slice()
     .sort((a, b) => score(b, today) - score(a, today) || b.createdAt - a.createdAt);
+  return pinFirst(ranked, pinnedId);
 }

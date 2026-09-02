@@ -89,4 +89,23 @@ URL: `/money`.
 4. Micro-sacrifice sentence is checkable: 2 × $22 / week toward $800.
 5. Reload: spends, impulses, and rate persist.
 
+---
+
+## S5 — Follow-through (graduated escalation)
+
+URL: `/follow-through` (also the **Follow-through** card on the home picker). Safari desktop, then iPhone as an installed PWA for the notification rung.
+
+1. From home, **Seed a week of history**, turn **Demo speed** on, open **Follow-through**. You should see intensity around 50: **Aura is meeting you in the middle.**
+2. Tap **Watch** on **Call the landlord** (or any open task). The ladder sits on **0. Waiting**. Within about **2 seconds** it should move to **1. Soft nudge** and a toast: **Still on your list: …**
+3. Wait. About **4s** total: **2. Pinned to Now**. Open **Now** (`/now`): that task is the **Do this** card. Come back.
+4. About **8s**: **3. System ping**. If you previously tapped **Allow notifications** and granted them, a banner may appear. If you deny or skip, the in-app ladder still advances and a one-line note explains iPhone/PWA limits. Nothing should look broken.
+5. About **12s**: **4. Takeover** fills the screen (a short beep unless reduced-motion is on). Tap **Done**. Intensity should rise (going easy). Watch the same kind of task again: rungs take longer.
+6. Arm another task. Toggle **Hard mute**: the ladder freezes. Toggle mute off. Turn **Quiet hours 10pm–8am** on during those hours: it freezes; off during daytime it should not. **Snooze** resets to waiting for ~2 simulated hours (~2s). **Skip today** works once; a second skip the same day is refused.
+7. **Done for now** returns to the picker. Reload: mute / quiet / score persist.
+
+### Expected gaps in S5
+
+- iOS banners need an installed PWA and are still unreliable in the background. The in-app ladder is the real test.
+- Paperwork (S4) and Weekly digest (S6) are still Next.
+
 
