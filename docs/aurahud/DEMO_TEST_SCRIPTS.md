@@ -108,4 +108,24 @@ URL: `/follow-through` (also the **Follow-through** card on the home picker). Sa
 - iOS banners need an installed PWA and are still unreliable in the background. The in-app ladder is the real test.
 - Paperwork (S4) and Weekly digest (S6) are still Next.
 
+---
+
+## Homework — local schedule (talk-in)
+
+URL: `/homework` (also the **Homework** card). Capture also works on `/now`. Safari desktop, then iPhone.
+
+1. Seed a week. Open Homework. You should see **History essay** with a suggested gap (seeded Math class at 2pm means a morning slot today or the next free morning).
+2. Type `math class friday at 2pm` and press Enter. Toast: **On your local calendar.** The event appears with Friday 2:00pm–3:00pm.
+3. Type `biology assignment due tomorrow`. It lands as homework. The suggested time should sit in a gap, not on top of the 2pm class.
+4. Type `I got milk`. Toast: **Logged what you got.** It is a grocery log, not a task. `buy milk tomorrow` on Now should still be a task.
+5. Tap **Nudge me** on an assignment, then open **Follow-through** with Demo speed on. The ladder should watch that assignment.
+6. **Done** on the assignment removes it from the list. Reload: events, groceries, and remaining homework persist.
+7. This calendar is on-device only. There is no Apple/Google account and no lock-screen widget.
+
+### Expected gaps
+
+- Native iPhone / Windows / Chrome extension shells and account sync are not in this slice.
+- Apple Calendar write and Google Calendar read are not connected.
+- Paperwork and Weekly digest are still Next.
+
 

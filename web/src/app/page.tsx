@@ -46,6 +46,13 @@ const DEMOS: Array<{
     href: "/follow-through",
   },
   {
+    id: "homework",
+    kicker: "School",
+    title: "Homework",
+    problem: "Talk in assignments, class times, and groceries. Aura finds a gap in your day.",
+    href: "/homework",
+  },
+  {
     id: "digest",
     kicker: "D5",
     title: "Weekly digest",
@@ -96,7 +103,7 @@ export default function HomePage() {
           in a glance.
         </h1>
         <p className="mt-4 max-w-sm text-sm leading-6 text-muted">
-          Six polished demos. No account. Nothing leaves this phone unless you export it.
+          Local demos. No account. Nothing leaves this phone unless you export it.
         </p>
       </header>
 

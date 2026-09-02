@@ -15,7 +15,9 @@ describe("seed", () => {
   it("loads a week of history with mail, spends, and a skipped impulse", () => {
     const state = buildSeedState(1_700_000_000_000);
     assert.ok(state.seededAt);
-    assert.equal(state.tasks.length, 3);
+    assert.equal(state.tasks.length, 4);
+    assert.equal(state.calendar.length, 1);
+    assert.equal(state.groceries.length, 1);
     assert.equal(state.spends.length, 4);
     assert.equal(state.mail.length, 1);
     assert.equal(state.impulses[0]?.status, "skipped");

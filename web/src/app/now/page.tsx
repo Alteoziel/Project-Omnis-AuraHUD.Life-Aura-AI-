@@ -10,7 +10,7 @@ import {
   routeIntentLocal,
   type NegativeConstraint,
 } from "@/lib/aura/intent-router";
-import { intentToTask, rankOpen, todayIso } from "@/lib/aura/capture";
+import { rankOpen, todayIso, capturePatch } from "@/lib/aura/capture";
 import { displayedRung } from "@/lib/aura/escalation";
 import { newId } from "@/lib/store/db";
 import type { TaskRecord } from "@/lib/store/schema";
@@ -55,21 +55,13 @@ export default function NowPage() {
   function capture(text: string) {
     const previous = state;
     const routed = routeIntentLocal(text, constraints, new Date(now()));
-    const task = intentToTask(routed, now());
-    const spend =
-      routed.kind === "budget_note" && routed.amountCents != null
-        ? {
-            id: newId(),
-            title: routed.title,
-            amountCents: routed.amountCents,
-            category: "uncategorized",
-            at: now(),
-          }
-        : null;
+    const patch = capturePatch(routed, now());
     setState({
       ...state,
-      tasks: [task, ...state.tasks],
-      spends: spend ? [spend, ...state.spends] : state.spends,
+      tasks: patch.task ? [patch.task, ...state.tasks] : state.tasks,
+      spends: patch.spend ? [patch.spend, ...state.spends] : state.spends,
+      calendar: patch.calendar ? [patch.calendar, ...state.calendar] : state.calendar,
+      groceries: patch.grocery ? [patch.grocery, ...state.groceries] : state.groceries,
       events: [
         {
           id: newId(),
@@ -80,7 +72,7 @@ export default function NowPage() {
         ...state.events,
       ],
     });
-    show("Captured.", () => setState(previous));
+    show(patch.toast, () => setState(previous));
   }
 
   function confirm() {
@@ -95,6 +87,8 @@ export default function NowPage() {
       dueOn: task.dueOn,
       priority: task.priority,
       amountCents: task.amountCents,
+      startMin: null,
+      endMin: null,
       notes: task.notes,
       confidence: 0,
       sourceText: task.sourceText,

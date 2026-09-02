@@ -3,6 +3,7 @@ export const DEMO_IDS = [
   "life-model",
   "money",
   "follow-through",
+  "homework",
   "digest",
   "paperwork",
 ] as const;
@@ -22,7 +23,7 @@ export type TaskRecord = {
   dueOn: string | null;
   priority: number;
   status: "open" | "done" | "skipped" | "captured";
-  kind: "task" | "reminder" | "budget_note" | "unclear";
+  kind: "task" | "reminder" | "budget_note" | "homework" | "unclear";
   notes: string;
   amountCents: number | null;
   sourceText: string;
@@ -62,6 +63,22 @@ export type MailRecord = {
   amountCents: number;
   dueOn: string;
   important: boolean;
+};
+
+export type CalendarEventRecord = {
+  id: string;
+  title: string;
+  day: string;
+  startMin: number;
+  endMin: number;
+  sourceText: string;
+  createdAt: number;
+};
+
+export type GroceryRecord = {
+  id: string;
+  title: string;
+  createdAt: number;
 };
 
 export type MetricRecord = {
@@ -114,6 +131,8 @@ export type AuraState = {
   corrections: CorrectionRecord[];
   impulses: ImpulseRecord[];
   mail: MailRecord[];
+  calendar: CalendarEventRecord[];
+  groceries: GroceryRecord[];
   metrics: MetricRecord[];
   followThrough: FollowThroughState;
 };
@@ -125,6 +144,8 @@ export function hydrateState(state: AuraState): AuraState {
       ...defaultFollowThrough(),
       ...(state.followThrough ?? defaultFollowThrough()),
     },
+    calendar: state.calendar ?? [],
+    groceries: state.groceries ?? [],
   };
 }
 
@@ -146,6 +167,8 @@ export function emptyState(nowMs: number): AuraState {
     corrections: [],
     impulses: [],
     mail: [],
+    calendar: [],
+    groceries: [],
     metrics: [],
     followThrough: defaultFollowThrough(),
   };
@@ -202,6 +225,18 @@ export function buildSeedState(nowMs: number): AuraState {
         amountCents: null,
         sourceText: "pick up the prescription",
         createdAt: nowMs - 3 * 86400000,
+      },
+      {
+        id: seedId("task", 4),
+        title: "History essay",
+        dueOn: isoDaysAgo(nowMs, -2),
+        priority: 2,
+        status: "open",
+        kind: "homework",
+        notes: "essay due in two days",
+        amountCents: null,
+        sourceText: "history essay due in 2 days",
+        createdAt: nowMs - 86400000,
       },
     ],
     spends: [
@@ -264,6 +299,24 @@ export function buildSeedState(nowMs: number): AuraState {
         important: true,
       },
     ],
+    calendar: [
+      {
+        id: seedId("cal", 1),
+        title: "Math class",
+        day: isoDaysAgo(nowMs, 0),
+        startMin: 14 * 60,
+        endMin: 15 * 60 + 20,
+        sourceText: "math class today at 2pm",
+        createdAt: nowMs,
+      },
+    ],
+    groceries: [
+      {
+        id: seedId("groc", 1),
+        title: "Milk",
+        createdAt: nowMs - 86400000,
+      },
+    ],
     events: [
       {
         id: seedId("evt", 1),
@@ -282,7 +335,9 @@ export function countSeededItems(state: AuraState): number {
     state.spends.length +
     state.corrections.length +
     state.impulses.length +
-    state.mail.length
+    state.mail.length +
+    state.calendar.length +
+    state.groceries.length
   );
 }
 
