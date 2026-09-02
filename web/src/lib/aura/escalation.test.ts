@@ -1,6 +1,5 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { rankOpen } from "./capture.ts";
 import {
   HOUR_MS,
   RUNG_AT_HOURS,
@@ -13,26 +12,11 @@ import {
   intensitySentence,
   isQuietHours,
   isSnoozed,
+  pinFirst,
   rungDelaysMs,
   scoreDeltaForComplete,
 } from "./escalation.ts";
 import { defaultFollowThrough } from "../store/schema.ts";
-import type { TaskRecord } from "../store/schema.ts";
-
-function task(id: string, title: string, createdAt: number): TaskRecord {
-  return {
-    id,
-    title,
-    dueOn: null,
-    priority: 3,
-    status: "open",
-    kind: "task",
-    notes: "",
-    amountCents: null,
-    sourceText: title,
-    createdAt,
-  };
-}
 
 describe("escalation ladder", () => {
   it("uses 1× delays at a neutral score of 50", () => {
@@ -115,8 +99,7 @@ describe("escalation ladder", () => {
   });
 
   it("pins the watched task to the front of Now", () => {
-    const tasks = [task("a", "Later", 2), task("b", "Watched", 1)];
-    const ranked = rankOpen(tasks, "2026-09-02", "b");
+    const ranked = pinFirst([{ id: "a" }, { id: "b" }], "b");
     assert.equal(ranked[0]?.id, "b");
   });
 });

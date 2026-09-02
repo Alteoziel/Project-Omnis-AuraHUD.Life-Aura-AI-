@@ -1,4 +1,16 @@
-import type { FollowThroughState } from "@/lib/store/schema";
+import type { FollowThroughState } from "../store/schema";
+
+export function pinFirst<T extends { id: string }>(
+  items: T[],
+  pinnedId?: string | null,
+): T[] {
+  if (!pinnedId) return items;
+  return items.slice().sort((a, b) => {
+    if (a.id === pinnedId && b.id !== pinnedId) return -1;
+    if (b.id === pinnedId && a.id !== pinnedId) return 1;
+    return 0;
+  });
+}
 
 export const HOUR_MS = 60 * 60 * 1000;
 export const SNOOZE_MS = 2 * HOUR_MS;
