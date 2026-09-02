@@ -11,6 +11,7 @@ import {
   type NegativeConstraint,
 } from "@/lib/aura/intent-router";
 import { intentToTask, rankOpen, todayIso } from "@/lib/aura/capture";
+import { displayedRung } from "@/lib/aura/escalation";
 import { newId } from "@/lib/store/db";
 import type { TaskRecord } from "@/lib/store/schema";
 
@@ -42,7 +43,9 @@ export default function NowPage() {
   );
 
   const today = todayIso(now());
-  const ranked = rankOpen(state.tasks, today);
+  const pinnedId =
+    displayedRung(state.followThrough, now()) >= 2 ? state.followThrough.watchingId : null;
+  const ranked = rankOpen(state.tasks, today, pinnedId);
   const current = ranked[0] ?? null;
   const next = ranked.slice(1, 4);
   const captured = state.tasks.filter(

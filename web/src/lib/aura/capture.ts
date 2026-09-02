@@ -33,9 +33,17 @@ function score(task: TaskRecord, today: string): number {
   return value;
 }
 
-export function rankOpen(tasks: TaskRecord[], today: string): TaskRecord[] {
+export function rankOpen(
+  tasks: TaskRecord[],
+  today: string,
+  pinnedId?: string | null,
+): TaskRecord[] {
   return tasks
     .filter((task) => task.status === "open")
     .slice()
-    .sort((a, b) => score(b, today) - score(a, today) || b.createdAt - a.createdAt);
+    .sort((a, b) => {
+      if (pinnedId && a.id === pinnedId && b.id !== pinnedId) return -1;
+      if (pinnedId && b.id === pinnedId && a.id !== pinnedId) return 1;
+      return score(b, today) - score(a, today) || b.createdAt - a.createdAt;
+    });
 }
