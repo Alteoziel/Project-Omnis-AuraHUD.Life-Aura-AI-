@@ -89,4 +89,43 @@ URL: `/money`.
 4. Micro-sacrifice sentence is checkable: 2 × $22 / week toward $800.
 5. Reload: spends, impulses, and rate persist.
 
+---
+
+## S5 — Follow-through (graduated escalation)
+
+URL: `/follow-through` (also the **Follow-through** card on the home picker). Safari desktop, then iPhone as an installed PWA for the notification rung.
+
+1. From home, **Seed a week of history**, turn **Demo speed** on, open **Follow-through**. You should see intensity around 50: **Aura is meeting you in the middle.**
+2. Tap **Watch** on **Call the landlord** (or any open task). The ladder sits on **0. Waiting**. Within about **2 seconds** it should move to **1. Soft nudge** and a toast: **Still on your list: …**
+3. Wait. About **4s** total: **2. Pinned to Now**. Open **Now** (`/now`): that task is the **Do this** card. Come back.
+4. About **8s**: **3. System ping**. If you previously tapped **Allow notifications** and granted them, a banner may appear. If you deny or skip, the in-app ladder still advances and a one-line note explains iPhone/PWA limits. Nothing should look broken.
+5. About **12s**: **4. Takeover** fills the screen (a short beep unless reduced-motion is on). Tap **Done**. Intensity should rise (going easy). Watch the same kind of task again: rungs take longer.
+6. Arm another task. Toggle **Hard mute**: the ladder freezes. Toggle mute off. Turn **Quiet hours 10pm–8am** on during those hours: it freezes; off during daytime it should not. **Snooze** resets to waiting for ~2 simulated hours (~2s). **Skip today** works once; a second skip the same day is refused.
+7. **Done for now** returns to the picker. Reload: mute / quiet / score persist.
+
+### Expected gaps in S5
+
+- iOS banners need an installed PWA and are still unreliable in the background. The in-app ladder is the real test.
+- Paperwork (S4) and Weekly digest (S6) are still Next.
+
+---
+
+## Homework — local schedule (talk-in)
+
+URL: `/homework` (also the **Homework** card). Capture also works on `/now`. Safari desktop, then iPhone.
+
+1. Seed a week. Open Homework. You should see **History essay** with a suggested gap (seeded Math class at 2pm means a morning slot today or the next free morning).
+2. Type `math class friday at 2pm` and press Enter. Toast: **On your local calendar.** The event appears with Friday 2:00pm–3:00pm.
+3. Type `biology assignment due tomorrow`. It lands as homework. The suggested time should sit in a gap, not on top of the 2pm class.
+4. Type `I got milk`. Toast: **Logged what you got.** It is a grocery log, not a task. `buy milk tomorrow` on Now should still be a task.
+5. Tap **Nudge me** on an assignment, then open **Follow-through** with Demo speed on. The ladder should watch that assignment.
+6. **Done** on the assignment removes it from the list. Reload: events, groceries, and remaining homework persist.
+7. This calendar is on-device only. There is no Apple/Google account and no lock-screen widget.
+
+### Expected gaps
+
+- Native iPhone / Windows / Chrome extension shells and account sync are not in this slice.
+- Apple Calendar write and Google Calendar read are not connected.
+- Paperwork and Weekly digest are still Next.
+
 

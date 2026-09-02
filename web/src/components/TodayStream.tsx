@@ -41,7 +41,7 @@ function ItemCard({
   onConfirm: () => void;
   onReject: () => void;
   onSaveEdit: (title: string) => void;
-  onType?: (kind: "task" | "reminder" | "budget_note") => void;
+  onType?: (kind: "task" | "reminder" | "budget_note" | "homework") => void;
 }) {
   const [editing, setEditing] = useState(false);
   const [title, setTitle] = useState(task.title);
@@ -84,6 +84,9 @@ function ItemCard({
           <Button type="button" variant="ghost" onClick={() => onType("budget_note")}>
             Spend
           </Button>
+          <Button type="button" variant="ghost" onClick={() => onType("homework")}>
+            Homework
+          </Button>
         </div>
       ) : (
         <Feedback
@@ -111,7 +114,7 @@ export function TodayStream({
   onConfirm: (id: string) => void;
   onReject: (task: TaskRecord) => void;
   onSaveEdit: (id: string, title: string) => void;
-  onType: (id: string, kind: "task" | "reminder" | "budget_note") => void;
+  onType: (id: string, kind: "task" | "reminder" | "budget_note" | "homework") => void;
 }) {
   return (
     <div className="flex flex-col gap-6">

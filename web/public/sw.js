@@ -1,5 +1,5 @@
 /* AuraHUD service worker — static shell, no boot-loop replace. */
-const VERSION = "s0-v2";
+const VERSION = "s5-v1";
 const STATIC_CACHE = `aura-static-${VERSION}`;
 const PAGE_CACHE = `aura-pages-${VERSION}`;
 
@@ -48,6 +48,24 @@ self.addEventListener("message", (event) => {
   if (event.data === "SKIP_WAITING") {
     self.skipWaiting();
   }
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const target = `${self.location.origin}/follow-through`;
+  event.waitUntil(
+    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((windows) => {
+      for (const client of windows) {
+        if (client.url.startsWith(target) && "focus" in client) {
+          return client.focus();
+        }
+      }
+      if (self.clients.openWindow) {
+        return self.clients.openWindow("/follow-through");
+      }
+      return undefined;
+    }),
+  );
 });
 
 function isSameOrigin(url) {

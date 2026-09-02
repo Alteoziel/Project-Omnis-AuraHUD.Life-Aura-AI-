@@ -57,7 +57,14 @@ export function parseAmountCents(text: string): number | null {
   return cents;
 }
 
-export type IntentKind = "task" | "reminder" | "budget_note" | "unclear";
+export type IntentKind =
+  | "task"
+  | "reminder"
+  | "budget_note"
+  | "homework"
+  | "event"
+  | "grocery"
+  | "unclear";
 
 export type RoutedIntent = {
   kind: IntentKind;
@@ -65,6 +72,8 @@ export type RoutedIntent = {
   dueOn: string | null;
   priority: number;
   amountCents: number | null;
+  startMin: number | null;
+  endMin: number | null;
   notes: string;
   confidence: number;
   sourceText: string;
@@ -101,11 +110,38 @@ function unclear(input: string, confidence: number): RoutedIntent {
     dueOn: null,
     priority: 3,
     amountCents: null,
+    startMin: null,
+    endMin: null,
     notes: input,
     confidence,
     sourceText: input,
   };
 }
+
+/** Minutes from local midnight, or null. */
+export function parseClockMin(text: string): number | null {
+  const ampm = text.match(/\b(\d{1,2})(?::(\d{2}))?\s*(am|pm)\b/i);
+  if (ampm) {
+    let hours = Number(ampm[1]);
+    const minutes = ampm[2] ? Number(ampm[2]) : 0;
+    if (!Number.isFinite(hours) || hours < 1 || hours > 12 || minutes > 59) return null;
+    if (hours === 12) hours = 0;
+    if (ampm[3].toLowerCase() === "pm") hours += 12;
+    return hours * 60 + minutes;
+  }
+  const military = text.match(/\b([01]?\d|2[0-3]):([0-5]\d)\b/);
+  if (!military) return null;
+  const hours = Number(military[1]);
+  const minutes = Number(military[2]);
+  if (!Number.isFinite(hours) || !Number.isFinite(minutes)) return null;
+  return hours * 60 + minutes;
+}
+
+const GROCERY_WORDS =
+  /\b(milk|eggs|bread|groceries|grocery|bananas?|apples?|chicken|rice|produce)\b/;
+const HOMEWORK_WORDS =
+  /\b(homework|assignment|essay|worksheet|lab report|study for|chapter)\b/;
+const EVENT_WORDS = /\b(class|lecture|meeting|appointment|practice|shift)\b/;
 
 function constraintHit(
   candidate: RoutedIntent,
@@ -139,19 +175,63 @@ export function routeIntentLocal(
   const lower = input.toLowerCase();
   const amountCents = parseAmountCents(input);
   const dueOn = parseDueOn(input, now);
+  const startMin = parseClockMin(input);
   const title = normalizeTitle(input) || input.slice(0, 80);
+  const gotGrocery = /\b(got|picked up)\b/.test(lower) && GROCERY_WORDS.test(lower);
+  const moneyTalk = /\b(spent|spend|paid|pay|afford|budget|bought|cost)\b/.test(lower);
 
   let candidate: RoutedIntent;
 
-  if (amountCents != null || /\b(spent|spend|paid|pay|afford|budget|bought|cost)\b/.test(lower)) {
+  if (amountCents != null || (moneyTalk && !gotGrocery)) {
     candidate = {
       kind: "budget_note",
       title: title || "Budget note",
       dueOn,
       priority: 2,
       amountCents,
+      startMin: null,
+      endMin: null,
       notes: input,
       confidence: amountCents != null ? 0.85 : 0.55,
+      sourceText: input,
+    };
+  } else if (gotGrocery) {
+    candidate = {
+      kind: "grocery",
+      title: title || "Grocery",
+      dueOn: null,
+      priority: 4,
+      amountCents: null,
+      startMin: null,
+      endMin: null,
+      notes: input,
+      confidence: 0.82,
+      sourceText: input,
+    };
+  } else if (HOMEWORK_WORDS.test(lower)) {
+    candidate = {
+      kind: "homework",
+      title: title || "Homework",
+      dueOn,
+      priority: dueOn ? 2 : 3,
+      amountCents: null,
+      startMin: null,
+      endMin: null,
+      notes: input,
+      confidence: 0.8,
+      sourceText: input,
+    };
+  } else if (EVENT_WORDS.test(lower) || (startMin != null && /\b(at|from)\b/.test(lower))) {
+    candidate = {
+      kind: "event",
+      title: title || "Event",
+      dueOn,
+      priority: 2,
+      amountCents: null,
+      startMin,
+      endMin: startMin != null ? Math.min(startMin + 60, 24 * 60) : null,
+      notes: input,
+      confidence: startMin != null || dueOn ? 0.8 : 0.58,
       sourceText: input,
     };
   } else if (/\b(buy|call|email|text|finish|clean|schedule|pick up)\b/.test(lower)) {
@@ -161,6 +241,8 @@ export function routeIntentLocal(
       dueOn,
       priority: 3,
       amountCents: null,
+      startMin: null,
+      endMin: null,
       notes: "",
       confidence: 0.74,
       sourceText: input,
@@ -172,6 +254,8 @@ export function routeIntentLocal(
       dueOn,
       priority: 2,
       amountCents: null,
+      startMin: null,
+      endMin: null,
       notes: input,
       confidence: 0.78,
       sourceText: input,
@@ -181,7 +265,12 @@ export function routeIntentLocal(
   }
 
   if (candidate.confidence < CONFIDENCE_FLOOR) {
-    candidate = { ...unclear(input, candidate.confidence), dueOn, amountCents };
+    candidate = {
+      ...unclear(input, candidate.confidence),
+      dueOn,
+      amountCents,
+      startMin,
+    };
   }
 
   if (constraintHit(candidate, constraints, input)) {
