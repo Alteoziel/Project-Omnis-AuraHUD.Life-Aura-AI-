@@ -212,7 +212,7 @@ export function createHud() {
   root.add(panel);
 
   const plate = new THREE.Mesh(
-    new THREE.PlaneGeometry(0.42, 0.36),
+    new THREE.PlaneGeometry(0.44, 0.4),
     new THREE.MeshBasicMaterial({
       color: 0x07141c,
       transparent: true,
@@ -220,20 +220,20 @@ export function createHud() {
       depthWrite: false,
     }),
   );
-  const plateGlow = new THREE.Mesh(new THREE.PlaneGeometry(0.434, 0.374), addMat(CYAN, 0.07));
-  const frame = bracket(0.42, 0.36);
+  const plateGlow = new THREE.Mesh(new THREE.PlaneGeometry(0.454, 0.414), addMat(CYAN, 0.07));
+  const frame = bracket(0.44, 0.4);
   const frameL = new THREE.Line(frame.left, lineMat(CYAN, 0.95));
   const frameR = new THREE.Line(frame.right, lineMat(CYAN, 0.95));
   const panelTitle = makeLabel("HOUSE SYSTEMS", 640, 80, 36);
-  panelTitle.position.set(0, 0.14, 0.002);
+  panelTitle.position.set(0, 0.16, 0.002);
   panel.add(plateGlow, plate, frameL, frameR, panelTitle);
 
   const buttons = [];
   ACTIONS.forEach((action, index) => {
     const row = new THREE.Group();
-    row.position.set(0, 0.04 - index * 0.09, 0.004);
+    row.position.set(0, 0.04 - index * 0.1, 0.004);
     const hit = new THREE.Mesh(
-      new THREE.PlaneGeometry(0.38, 0.078),
+      new THREE.PlaneGeometry(0.4, 0.088),
       new THREE.MeshBasicMaterial({
         color: 0x0a2430,
         transparent: true,
@@ -243,11 +243,11 @@ export function createHud() {
     );
     const edge = new THREE.LineLoop(
       new THREE.BufferGeometry().setFromPoints([
-        new THREE.Vector3(-0.19, 0.039, 0),
-        new THREE.Vector3(0.19, 0.039, 0),
-        new THREE.Vector3(0.19, -0.039, 0),
-        new THREE.Vector3(-0.19, -0.039, 0),
-        new THREE.Vector3(-0.19, 0.039, 0),
+        new THREE.Vector3(-0.2, 0.044, 0),
+        new THREE.Vector3(0.2, 0.044, 0),
+        new THREE.Vector3(0.2, -0.044, 0),
+        new THREE.Vector3(-0.2, -0.044, 0),
+        new THREE.Vector3(-0.2, 0.044, 0),
       ]),
       lineMat(CYAN, 0.45),
     );
@@ -283,12 +283,17 @@ export function createHud() {
   receipt.position.set(0.46, -0.23, 0.03);
   root.add(receipt);
 
-  const brief = makeBlock([
-    "POINT THE BEAM  ·  PINCH TO ACTUATE",
-    "THUMB + INDEX  ·  RAY HITS THE TOGGLE",
-    "RING LOCKS TO HELMET  ·  SPEAK → VOICE ORB",
-  ]);
-  brief.position.set(0, -0.52, 0.02);
+  const brief = makeBlock(
+    [
+      "POINT THE BEAM  ·  PINCH TO ACTUATE",
+      "THUMB + INDEX  ·  RAY HITS THE TOGGLE",
+      "RING LOCKS TO HELMET  ·  SPEAK → VOICE ORB",
+    ],
+    1120,
+    360,
+    40,
+  );
+  brief.position.set(0, -0.54, 0.02);
   root.add(brief);
 
   let scanSweep = 0;

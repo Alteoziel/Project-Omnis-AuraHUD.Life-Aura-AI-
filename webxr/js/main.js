@@ -240,7 +240,7 @@ async function initXrButton() {
     return;
   }
   enterBtn.disabled = false;
-  hint.textContent = "Quest 3: Engage Helmet. Point the beam at a toggle, then pinch.";}
+  hint.textContent = "Quest 3: Engage Helmet. Point the beam at a toggle, then pinch.";
 }
 
 function tick() {
@@ -255,11 +255,11 @@ function tick() {
   }
   voice.sample();
   hud.setVoiceLevel(voiceLevel);
+  hands.interact(hud.buttons, fireAction);
   hud.buttons.forEach((row) => {
     const hover = Boolean(row.userData.hover || row.userData.controllerHover);
     hud.setButtonState(row, { hover });
   });
-  hands.interact(hud.buttons, fireAction);
   hud.update(dt, elapsed);
   clockEl.textContent = new Date().toISOString().slice(11, 19) + "Z";
   renderer.render(scene, camera);

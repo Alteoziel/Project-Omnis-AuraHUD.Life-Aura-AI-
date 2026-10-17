@@ -1,7 +1,7 @@
 import * as THREE from "three";
 
-const PINCH_ON = 0.024;
-const PINCH_OFF = 0.034;
+const PINCH_ON = 0.028;
+const PINCH_OFF = 0.04;
 const RAY_LENGTH = 1.6;
 
 function glowMat(opacity = 0.9) {
@@ -51,6 +51,8 @@ export function createHands(renderer, scene) {
   const knuckle = new THREE.Vector3();
   const thumb = new THREE.Vector3();
   const hitPoint = new THREE.Vector3();
+  const jointOrigin = new THREE.Vector3();
+  const jointDir = new THREE.Vector3();
 
   const visuals = hands.map((hand, index) => {
     scene.add(hand);
@@ -77,7 +79,7 @@ export function createHands(renderer, scene) {
 
     const laser = makeRay();
     scene.add(laser);
-    const cursor = new THREE.Mesh(new THREE.SphereGeometry(0.01, 16, 16), glowMat(0.95));
+    const cursor = new THREE.Mesh(new THREE.SphereGeometry(0.014, 16, 16), glowMat(0.95));
     cursor.visible = false;
     scene.add(cursor);
 
@@ -106,7 +108,9 @@ export function createHands(renderer, scene) {
       thumbTip.getWorldPosition(thumb);
       origin.lerp(thumb, 0.35);
     }
-    return { origin, dir, indexTip, thumbTip };
+    jointOrigin.copy(origin);
+    jointDir.copy(dir);
+    return { origin: jointOrigin, dir: jointDir, indexTip, thumbTip };
   };
 
   const controllerRay = (controller) => {
@@ -141,16 +145,18 @@ export function createHands(renderer, scene) {
 
   const setLaser = (laser, cursor, ray, hit) => {
     const points = laser.geometry.attributes.position;
-    const end = hit ? hitPoint.copy(hit.point) : origin.clone().addScaledVector(dir, RAY_LENGTH);
+    const end = hit
+      ? hitPoint.copy(hit.point)
+      : ray.origin.clone().addScaledVector(ray.dir, RAY_LENGTH);
     points.setXYZ(0, ray.origin.x, ray.origin.y, ray.origin.z);
     points.setXYZ(1, end.x, end.y, end.z);
     points.needsUpdate = true;
     laser.visible = true;
-    laser.material.opacity = hit ? 0.85 : 0.28;
+    laser.material.opacity = hit ? 0.95 : 0.4;
     cursor.visible = Boolean(hit);
     if (hit) {
       cursor.position.copy(hit.point);
-      cursor.scale.setScalar(hit ? 1.35 : 1);
+      cursor.scale.setScalar(1.6);
     }
   };
 
@@ -175,7 +181,9 @@ export function createHands(renderer, scene) {
         thumbDot.visible = false;
       }
 
-      const ray = controllerRay(controller) || (joints ? { origin, dir } : null);
+      // Tracked joints win. A dummy XR controller at a default pose must
+      // not steal the beam — that is why Quest pinches were missing the panel.
+      const ray = joints || controllerRay(controller);
       if (!ray) {
         laser.visible = false;
         cursor.visible = false;
