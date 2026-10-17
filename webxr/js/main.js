@@ -132,7 +132,7 @@ const jarvis = createJarvis({
   onState(state) {
     if (state === "live") {
       voiceEl.textContent = "JARVIS LIVE";
-    } else     if (state === "unavailable") {
+    } else if (state === "unavailable") {
       voiceEl.textContent = "JARVIS OFF";
       hud.setReply("WEB SPEECH UNAVAILABLE — TAP STILL WORKS");
     }
@@ -305,7 +305,19 @@ async function requestArSession() {
   const attempts = [
     {
       requiredFeatures: ["local-floor"],
-      optionalFeatures: ["hand-tracking", "dom-overlay", "hit-test", "anchors"],
+      optionalFeatures: [
+        "hand-tracking",
+        "dom-overlay",
+        "hit-test",
+        "anchors",
+        "plane-detection",
+        "mesh-detection",
+      ],
+      domOverlay: { root: overlay },
+    },
+    {
+      requiredFeatures: ["local-floor"],
+      optionalFeatures: ["hand-tracking", "dom-overlay", "plane-detection"],
       domOverlay: { root: overlay },
     },
     {
@@ -341,6 +353,7 @@ async function enterAR() {
       document.body.classList.remove("is-xr");
       previewRig.visible = true;
       house.resetCenter();
+      hud.flashReceipt("ROOM  PREVIEW", true);
       renderer.setClearColor(0x000000, 0);
       placePreviewHud();
       enterBtn.disabled = false;
@@ -351,6 +364,8 @@ async function enterAR() {
     snapped = false;
     document.body.classList.add("is-xr");
     previewRig.visible = false;
+    house.beginSession();
+    hud.flashReceipt("ROOM MESH  SEEKING", true);
     renderer.setClearColor(0x000000, 0);
     try {
       await voice.start();
@@ -378,10 +393,11 @@ async function initXrButton() {
     return;
   }
   enterBtn.disabled = false;
-  hint.textContent = "Quest 3: Engage Helmet. Say send the suit. Palm out to charge a blast. Reach + tap panels.";
+  hint.textContent =
+    "Quest 3: Engage Helmet. Pinch thumb+index to move a window. Tap to actuate. Say send the suit.";
 }
 
-function tick() {
+function tick(_time, frame) {
   const dt = Math.min(0.05, clock.getDelta());
   const elapsed = clock.elapsedTime;
   if (!xrActive) {
@@ -396,7 +412,11 @@ function tick() {
   camera.getWorldPosition(camPos);
   camera.getWorldQuaternion(followQuat);
   if (xrActive) {
-    house.centerOn(camPos);
+    house.sync(frame, renderer.xr.getReferenceSpace(), camPos, dt);
+    const roomNote = house.consumeNote();
+    if (roomNote) {
+      hud.flashReceipt(roomNote, !roomNote.includes("FALLBACK"));
+    }
   }
   const palms = hands.palms(camPos, followQuat);
   const skipSwipe = hands.grabbing() || suit.charging || (suit.equipped && palms.some((palm) => palm.facingAway));

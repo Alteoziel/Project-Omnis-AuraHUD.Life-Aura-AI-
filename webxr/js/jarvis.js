@@ -1,5 +1,7 @@
 const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 
+export const SILENCE_MS = 2200;
+
 export function parseCommand(raw) {
   const text = String(raw || "")
     .toLowerCase()
@@ -64,6 +66,35 @@ export function createJarvis({ onHeard, onCommand, onState } = {}) {
   let recognition = null;
   let enabled = false;
   let restarting = false;
+  let speaking = false;
+  let buffer = "";
+  let silenceTimer = null;
+
+  const clearSilence = () => {
+    if (silenceTimer) {
+      window.clearTimeout(silenceTimer);
+      silenceTimer = null;
+    }
+  };
+
+  const commit = () => {
+    silenceTimer = null;
+    const text = buffer.trim();
+    buffer = "";
+    if (!text || speaking) {
+      return;
+    }
+    onHeard?.(text, true);
+    const command = parseCommand(text);
+    if (command.type !== "empty") {
+      onCommand?.(command, text);
+    }
+  };
+
+  const armSilence = () => {
+    clearSilence();
+    silenceTimer = window.setTimeout(commit, SILENCE_MS);
+  };
 
   const speak = (line) => {
     if (!window.speechSynthesis) {
@@ -78,18 +109,19 @@ export function createJarvis({ onHeard, onCommand, onState } = {}) {
     utter.rate = 1.04;
     utter.pitch = 0.86;
     utter.lang = voice?.lang || "en-GB";
+    utter.onstart = () => {
+      speaking = true;
+      buffer = "";
+      clearSilence();
+    };
+    utter.onend = () => {
+      speaking = false;
+    };
+    utter.onerror = () => {
+      speaking = false;
+    };
+    speaking = true;
     window.speechSynthesis.speak(utter);
-  };
-
-  const handleText = (text, isFinal) => {
-    onHeard?.(text, isFinal);
-    if (!isFinal) {
-      return;
-    }
-    const command = parseCommand(text);
-    if (command.type !== "empty") {
-      onCommand?.(command, text);
-    }
   };
 
   const attach = () => {
@@ -102,21 +134,26 @@ export function createJarvis({ onHeard, onCommand, onState } = {}) {
     rec.interimResults = true;
     rec.lang = "en-US";
     rec.onresult = (event) => {
+      if (speaking) {
+        return;
+      }
       let interim = "";
-      let finalText = "";
+      let finals = "";
       for (let i = event.resultIndex; i < event.results.length; i += 1) {
         const chunk = event.results[i][0]?.transcript || "";
         if (event.results[i].isFinal) {
-          finalText += chunk;
+          finals += `${finals ? " " : ""}${chunk}`;
         } else {
           interim += chunk;
         }
       }
-      if (interim) {
-        handleText(interim, false);
+      if (finals) {
+        buffer = `${buffer} ${finals}`.replace(/\s+/g, " ").trim();
       }
-      if (finalText) {
-        handleText(finalText, true);
+      const display = `${buffer} ${interim}`.replace(/\s+/g, " ").trim();
+      if (display) {
+        onHeard?.(display, false);
+        armSilence();
       }
     };
     rec.onerror = () => {
@@ -162,6 +199,8 @@ export function createJarvis({ onHeard, onCommand, onState } = {}) {
 
   const stop = () => {
     enabled = false;
+    clearSilence();
+    buffer = "";
     try {
       recognition?.stop();
     } catch {

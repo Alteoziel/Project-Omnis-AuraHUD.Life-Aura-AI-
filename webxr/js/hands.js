@@ -1,5 +1,8 @@
 import * as THREE from "three";
 
+const PINCH_ON = 0.025;
+const PINCH_OFF = 0.038;
+
 function glowMat(opacity = 0.9) {
   return new THREE.MeshBasicMaterial({
     color: 0x3df0ff,
@@ -24,6 +27,12 @@ export function createHands(renderer, scene) {
   const palmB = new THREE.Vector3();
   const palmC = new THREE.Vector3();
   const wristPos = new THREE.Vector3();
+  const pinchMid = new THREE.Vector3();
+  const winPos = new THREE.Vector3();
+  const palmNormal = new THREE.Vector3();
+  const palmCenter = new THREE.Vector3();
+  const camFwd = new THREE.Vector3();
+  const fromCam = new THREE.Vector3();
 
   const visuals = hands.map((hand) => {
     scene.add(hand);
@@ -33,6 +42,7 @@ export function createHands(renderer, scene) {
     thumbDot.visible = false;
     scene.add(indexDot, thumbDot);
     hand.userData.poked = false;
+    hand.userData.pinched = false;
     hand.userData.grabbing = null;
     hand.userData.palmHist = [];
     hand.userData.swipeAt = 0;
@@ -51,6 +61,22 @@ export function createHands(renderer, scene) {
       thumbTip.getWorldPosition(thumb);
     }
     return { indexTip, thumbTip: thumbTip || null };
+  };
+
+  const pinchState = (hand, thumbTip) => {
+    if (!thumbTip) {
+      return hand.userData.pinched ? "hold" : "open";
+    }
+    const distance = tip.distanceTo(thumb);
+    if (!hand.userData.pinched && distance < PINCH_ON) {
+      hand.userData.pinched = true;
+      return "start";
+    }
+    if (hand.userData.pinched && distance > PINCH_OFF) {
+      hand.userData.pinched = false;
+      return "end";
+    }
+    return hand.userData.pinched ? "hold" : "open";
   };
 
   const pokeHit = (row, worldTip) => {
@@ -80,7 +106,7 @@ export function createHands(renderer, scene) {
     const indexTip = hand.joints["index-finger-tip"];
     const pinky = hand.joints["pinky-finger-tip"];
     const thumbTip = hand.joints["thumb-tip"];
-    if (!wrist || !indexTip || !pinky || !thumbTip) {
+    if (!wrist || !indexTip || !pinky || !thumbTip || hand.userData.pinched) {
       return false;
     }
     wrist.getWorldPosition(palmA);
@@ -90,99 +116,21 @@ export function createHands(renderer, scene) {
     return palmA.distanceTo(palmB) > 0.08 && palmA.distanceTo(palmC) > 0.07 && palmB.distanceTo(thumb) > 0.055;
   };
 
-  const palmNormal = new THREE.Vector3();
-  const palmCenter = new THREE.Vector3();
-  const camFwd = new THREE.Vector3();
-  const fromCam = new THREE.Vector3();
-  const knuckleDir = new THREE.Vector3();
-  const winPos = new THREE.Vector3();
-  const toWin = new THREE.Vector3();
-  const tipPos = new THREE.Vector3();
-  const EXTENDED = 0.112;
-  const CURLED = 0.084;
-  const FINGER_NAMES = ["index", "middle", "ring", "pinky"];
-
-  const measureHand = (hand) => {
-    const wrist = hand.joints.wrist;
-    const indexTip = hand.joints["index-finger-tip"];
-    const pinkyTip = hand.joints["pinky-finger-tip"];
-    const thumbTip = hand.joints["thumb-tip"];
-    const midProx = hand.joints["middle-finger-phalanx-proximal"] || hand.joints["middle-finger-metacarpal"];
-    if (!wrist || !indexTip || !pinkyTip || !thumbTip) {
-      return null;
-    }
-    wrist.getWorldPosition(palmA);
-    indexTip.getWorldPosition(palmB);
-    pinkyTip.getWorldPosition(palmC);
-    thumbTip.getWorldPosition(thumb);
-    let extended = 0;
-    let curled = 0;
-    let counted = 0;
-    FINGER_NAMES.forEach((name) => {
-      const joint = hand.joints[`${name}-finger-tip`];
-      if (!joint) {
+  const nearestWindow = (windows, point) => {
+    let best = null;
+    let dist = 0.28;
+    windows.forEach((win) => {
+      if (win.userData.grabbed) {
         return;
       }
-      joint.getWorldPosition(tipPos);
-      const dist = palmA.distanceTo(tipPos);
-      if (dist > EXTENDED) {
-        extended += 1;
+      win.getWorldPosition(winPos);
+      const d = point.distanceTo(winPos);
+      if (d < dist) {
+        dist = d;
+        best = win;
       }
-      if (dist < CURLED) {
-        curled += 1;
-      }
-      counted += 1;
     });
-    palmNormal.copy(palmB).sub(palmA).cross(toWin.copy(palmC).sub(palmA));
-    if (palmNormal.lengthSq() < 1e-8) {
-      return null;
-    }
-    palmNormal.normalize();
-    palmCenter.copy(palmA).add(palmB).add(palmC).multiplyScalar(1 / 3);
-    if (midProx) {
-      midProx.getWorldPosition(tipPos);
-      knuckleDir.copy(tipPos).sub(palmA);
-    } else {
-      knuckleDir.copy(palmCenter).sub(palmA);
-    }
-    if (knuckleDir.lengthSq() < 1e-8) {
-      return null;
-    }
-    knuckleDir.normalize();
-    return {
-      extended,
-      curled,
-      counted,
-      open: palmA.distanceTo(palmB) > 0.08 && palmA.distanceTo(palmC) > 0.07 && palmB.distanceTo(thumb) > 0.055,
-      palm: palmCenter.clone(),
-      normal: palmNormal.clone(),
-      knuckle: knuckleDir.clone(),
-    };
-  };
-
-  const grabPose = (hand, win) => {
-    const pose = measureHand(hand);
-    if (!pose || pose.counted < 3) {
-      return null;
-    }
-    win.getWorldPosition(winPos);
-    if (pose.palm.distanceTo(winPos) > 0.34) {
-      return null;
-    }
-    toWin.copy(winPos).sub(pose.palm);
-    if (toWin.lengthSq() < 1e-8) {
-      return null;
-    }
-    toWin.normalize();
-    const palmAt = Math.abs(pose.normal.dot(toWin)) > 0.42;
-    const fistAt = pose.knuckle.dot(toWin) > 0.4;
-    if (pose.extended >= 3 && pose.curled === 0 && palmAt) {
-      return "palm";
-    }
-    if (pose.curled >= 3 && pose.extended === 0 && fistAt) {
-      return "fist";
-    }
-    return null;
+    return best;
   };
 
   const palms = (cameraPos, camQuat) => {
@@ -260,50 +208,35 @@ export function createHands(renderer, scene) {
         thumbDot.visible = false;
       }
 
-      const pose = measureHand(hand);
-      const holdPoint = pose?.palm || (joints ? tip.clone() : null);
-
-      if (hand.userData.grabbing) {
-        const hold = hand.userData.grabbing;
-        if (holdPoint && grabPose(hand, hold)) {
-          hand.userData.releaseFrames = 0;
-          onGrabMove?.(hold, holdPoint);
-        } else {
-          hand.userData.releaseFrames = (hand.userData.releaseFrames || 0) + 1;
-          if (hand.userData.releaseFrames > 5) {
-            onGrabEnd?.(hold);
-            hand.userData.grabbing = null;
-            hand.userData.releaseFrames = 0;
-          } else if (holdPoint) {
-            onGrabMove?.(hold, holdPoint);
-          }
-        }
-        return;
+      const pinch = joints ? pinchState(hand, joints.thumbTip) : "open";
+      if (joints?.thumbTip) {
+        pinchMid.copy(tip).lerp(thumb, 0.5);
+      } else {
+        pinchMid.copy(tip);
       }
 
-      if (holdPoint && !hand.userData.grabbing) {
-        const attach = windows.find((win) => grabPose(hand, win));
-        const otherHold = visuals.some((item) => item.hand !== hand && item.hand.userData.grabbing);
-        if (attach && !otherHold && !windows.some((win) => win.userData.grabbed && win !== attach)) {
-          hand.userData.grabbing = attach;
-          hand.userData.releaseFrames = 0;
-          onGrabStart?.(attach, holdPoint);
-          return;
+      if (hand.userData.grabbing) {
+        if (pinch === "end" || pinch === "open") {
+          onGrabEnd?.(hand.userData.grabbing);
+          hand.userData.grabbing = null;
+        } else {
+          onGrabMove?.(hand.userData.grabbing, pinchMid.clone());
         }
+        return;
       }
 
       let pokeTarget = null;
       let pokeKind = null;
       if (joints) {
         targets.forEach((row) => {
-          if (row.userData.kind === "grab") {
-            return;
-          }
           const kind = pokeHit(row, tip);
           if (!kind) {
             return;
           }
           row.userData.controllerHover = true;
+          if (row.userData.kind === "grab") {
+            return;
+          }
           if (kind === "poke") {
             pokeTarget = row;
             pokeKind = "poke";
@@ -320,6 +253,17 @@ export function createHands(renderer, scene) {
       }
       if (pokeKind !== "poke") {
         hand.userData.poked = false;
+      }
+
+      const actuating = Boolean(pokeKind);
+      if (pinch === "start" && !actuating) {
+        const attach = nearestWindow(windows, pinchMid);
+        const otherHold = visuals.some((item) => item.hand !== hand && item.hand.userData.grabbing);
+        if (attach && !otherHold) {
+          hand.userData.grabbing = attach;
+          onGrabStart?.(attach, pinchMid.clone());
+          return;
+        }
       }
 
       if (joints && palmOpen(hand) && !skipSwipe) {

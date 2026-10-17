@@ -165,7 +165,7 @@ function makeHandle(width) {
     ]),
     lineMat(GOLD, 0.9),
   );
-  const label = makeLabel("PALM / FIST", 420, 72, 28, "#f0c14a");
+  const label = makeLabel("PINCH TO MOVE", 480, 72, 28, "#f0c14a");
   label.position.z = 0.001;
   const pipL = new THREE.Mesh(new THREE.CircleGeometry(0.007, 10), addMat(GOLD, 0.85));
   const pipR = pipL.clone();
@@ -351,7 +351,7 @@ export function createHud() {
   orbGroup.add(orbShell, orbCore, orbRing, orbLabel);
   stage.add(orbGroup);
 
-  const heard = makeLabel("HEARD  —", 900, 72, 28, "#8ad7e4");
+  const heard = makeLabel("HEARD  —", 1100, 80, 30, "#8ad7e4");
   heard.position.set(0, -0.48, 0.02);
   const reply = makeLabel("JARVIS STANDBY", 900, 72, 28, "#9ff7ff");
   reply.position.set(0, -0.56, 0.02);
@@ -359,8 +359,8 @@ export function createHud() {
 
   const brief = makeBlock(
     [
-      "FLAT PALM OR OUTWARD FIST MOVES A WINDOW",
-      "RELAX TO LEAVE IT  ·  FINGERS ONLY TAP",
+      "PINCH THUMB + INDEX TO MOVE A WINDOW",
+      "RELEASE TO DROP  ·  HOVER / TAP NEVER GRABS",
       "SAY SEND THE SUIT  ·  PALM OUT TO BLAST",
     ],
     1180,
@@ -371,27 +371,27 @@ export function createHud() {
   stage.add(brief);
 
   const chip = new THREE.Group();
-  chip.position.set(0.32, 0.32, 0.03);
+  chip.position.set(0.34, 0.34, 0.03);
   const chipHit = new THREE.Mesh(
-    new THREE.PlaneGeometry(0.14, 0.06),
+    new THREE.PlaneGeometry(0.18, 0.072),
     new THREE.MeshBasicMaterial({
       color: 0x0a2430,
       transparent: true,
-      opacity: 0.7,
+      opacity: 0.78,
       depthWrite: false,
     }),
   );
   const chipEdge = new THREE.LineLoop(
     new THREE.BufferGeometry().setFromPoints([
-      new THREE.Vector3(-0.07, 0.03, 0),
-      new THREE.Vector3(0.07, 0.03, 0),
-      new THREE.Vector3(0.07, -0.03, 0),
-      new THREE.Vector3(-0.07, -0.03, 0),
-      new THREE.Vector3(-0.07, 0.03, 0),
+      new THREE.Vector3(-0.09, 0.036, 0),
+      new THREE.Vector3(0.09, 0.036, 0),
+      new THREE.Vector3(0.09, -0.036, 0),
+      new THREE.Vector3(-0.09, -0.036, 0),
+      new THREE.Vector3(-0.09, 0.036, 0),
     ]),
     lineMat(GOLD, 0.95),
   );
-  const chipLabel = makeLabel("STOW", 420, 80, 34, "#f0c14a");
+  const chipLabel = makeLabel("TAP STOW", 480, 80, 34, "#f0c14a");
   chipLabel.position.z = 0.002;
   chip.add(chipHit, chipEdge, chipLabel);
   chip.userData = { kind: "chip", hit: chipHit };
@@ -427,7 +427,7 @@ export function createHud() {
 
   const setCompact = (next) => {
     wantCompact = next ? 1 : 0;
-    writeLabel(chipLabel, next ? "STARK OS" : "STOW", "#f0c14a");
+    writeLabel(chipLabel, next ? "STARK OS" : "TAP STOW", "#f0c14a");
   };
 
   const recallWindows = () => {
@@ -572,7 +572,7 @@ export function createHud() {
       chip.scale.setScalar(0.85 + compact * 1.15);
       if (!chip.userData.magnet) {
         chip.position.lerp(
-          new THREE.Vector3(compact > 0.5 ? 0 : 0.32, compact > 0.5 ? 0.02 : 0.32, 0.03),
+          new THREE.Vector3(compact > 0.5 ? 0 : 0.34, compact > 0.5 ? 0.02 : 0.34, 0.03),
           Math.min(1, dt * 6),
         );
       }

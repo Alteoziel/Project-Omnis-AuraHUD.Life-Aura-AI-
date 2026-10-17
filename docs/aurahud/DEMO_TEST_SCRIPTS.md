@@ -108,14 +108,15 @@ URL: https://tony-stark-hud-theta.vercel.app/ (Vercel project `tony-stark-hud`, 
 3. Tap **Engage Helmet**. Allow camera / microphone if the browser asks.
 4. Passthrough stays on — you still see the real room. A cyan holographic ring locks in front of your face and slowly rotates. HOUSE SYSTEMS is on the right, HOLOCOMM on the left.
 5. Reach an open hand toward **HOUSE SYSTEMS**. The window should slide toward your hand and shrink (same visual size, nearer). Hover **Desk Light** with your index fingertip — the row brightens. Tap / poke the row. It flashes `ACTUATED`. Lights stay local. There is no laser / pinch-beam.
-6. Repeat for **Ceiling Light**. Same reach → hover → tap. If you cannot reach yet, keep the hand out — the panel should come to you.
-7. Put a **flat palm toward the window**, or a **loose fist with fingers facing the window**, and slide it aside. Two fingers / a poke must not attach. Relax to a normal hand — the window stays where you left it. Open-hand **palm swipe** snaps windows home. There is only one HOUSE SYSTEMS and one HOLOCOMM.
-8. Tap **STOW** (gold chip). The HUD collapses to a small **STARK OS** chip. Tap the chip or palm-swipe to restore.
-9. Say “Jarvis, send the suit” (or tap **NANO SUIT**). Cyan/gold plates build onto hands, then arms, then the body in about two seconds. Not a Marvel mesh.
-10. With the suit on, hold one hand **palm out, facing away**, and keep it still. Light + original charge tone for ~2s, then a blast. A house wall should break into chunks and fall apart.
-11. Say “take the suit off.” Armor peels. You are visor + passthrough again.
-12. Say “Jarvis, status” then “open holocomm” or tap **THE SAGE**. Heard text appears. A blue cone projects a CC0 Kenney humanoid in hologram material. It idles, then talks while a stylized original line is spoken (TTS). Repeat for masked lord / hooded emperor / young knight. Not film likenesses, not movie audio.
-13. Use the Quest browser exit / **End AR** control. You return to the 2D visor page. **Engage Helmet** works again.
+6. Repeat for **Ceiling Light**. Same reach → hover → tap. If you cannot reach yet, keep the hand out — the panel should come to you. Hover / two-finger tap must **not** grab the window.
+7. **Pinch thumb + index** near HOUSE SYSTEMS and drag it aside. Only that pinch attaches. Release the pinch — the window stays where you left it. A palm or fist must not attach. Open-hand **palm swipe** snaps windows home. There is only one HOUSE SYSTEMS and one HOLOCOMM.
+8. The gold **TAP STOW** chip stays on-visor. Tap it (or say “minimize”). The HUD collapses to a **STARK OS** chip. Tap the chip, palm-swipe, or say “restore”.
+9. Watch the house. After Engage, the receipt should read `ROOM MESH  N WALLS` and cyan chunks should sit on **your real walls** (Quest Space Setup + allow spatial data). If the browser has no mesh / you deny permission, after ~4s it reads `ROOM FALLBACK  NO MESH` and uses the generic box.
+10. Say “Jarvis, send the suit” (or tap **NANO SUIT**). Speak across a short breath — the HEARD line should keep the words and **not** fire until you stay quiet ~2 seconds. Then cyan/gold plates build onto hands, then arms, then the body in about two seconds. Not a Marvel mesh.
+11. With the suit on, hold one hand **palm out, facing away**, and keep it still. Light + original charge tone for ~2s, then a blast. Chunks on the **real wall** (or fallback box) should break and fall.
+12. Say “take the suit off.” Armor peels. You are visor + passthrough again.
+13. Say “Jarvis, status” then “open holocomm” or tap **THE SAGE**. Heard text appears, then the command fires only after the long pause. A blue cone projects a CC0 Kenney humanoid in hologram material. It idles, then talks while a stylized original line is spoken (TTS). Repeat for masked lord / hooded emperor / young knight. Not film likenesses, not movie audio.
+14. Use the Quest browser exit / **End AR** control. You return to the 2D visor page. **Engage Helmet** works again.
 
 ### Expected gaps
 
@@ -123,6 +124,7 @@ URL: https://tony-stark-hud-theta.vercel.app/ (Vercel project `tony-stark-hud`, 
 - Hand meshes are fingertip markers plus nano plates, not full skinned hands.
 - Cloud AI stays off. No API keys. Jarvis and holocomm voices are Web Speech, not a model.
 - Holocomm figures are Kenney Mini Characters (CC0) plus original accessories/lines. Not Disney / Lucasfilm likenesses.
-- No first-encounter / shoot-walls scene exists in this AuraHUD repo (current tree or `19e71e7`). The visor house uses original chunked walls that detach, tumble, and fall — same described feel, not copied meshes.
+- No first-encounter / shoot-walls scene exists in this AuraHUD repo (current tree or `19e71e7`). Chunks are original. They map onto WebXR plane/mesh detection when Quest Space Setup + spatial permission are available; otherwise a generic box after ~4s.
+- Web Speech still needs a mic permission and a browser engine that implements SpeechRecognition. Silence commit is ~2.2s on purpose so a breath does not end the line.
 
 
