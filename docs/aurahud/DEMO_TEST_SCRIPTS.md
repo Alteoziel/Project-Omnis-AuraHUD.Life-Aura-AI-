@@ -109,7 +109,7 @@ URL: https://tony-stark-hud-theta.vercel.app/ (Vercel project `tony-stark-hud`, 
 4. Passthrough stays on — you still see the real room. A cyan holographic ring locks in front of your face and slowly rotates. HOUSE SYSTEMS is on the right, HOLOCOMM on the left.
 5. Reach an open hand toward **HOUSE SYSTEMS**. The window should slide toward your hand and shrink (same visual size, nearer). Hover **Desk Light** with your index fingertip — the row brightens. Tap / poke the row. It flashes `ACTUATED`. Lights stay local. There is no laser / pinch-beam.
 6. Repeat for **Ceiling Light**. Same reach → hover → tap. If you cannot reach yet, keep the hand out — the panel should come to you.
-7. Grab the gold **GRAB** bar (poke and hold) and slide the window aside. Open-hand **palm swipe** — windows snap home.
+7. Put a **flat palm toward the window**, or a **loose fist with fingers facing the window**, and slide it aside. Two fingers / a poke must not attach. Relax to a normal hand — the window stays where you left it. Open-hand **palm swipe** snaps windows home. There is only one HOUSE SYSTEMS and one HOLOCOMM.
 8. Tap **STOW** (gold chip). The HUD collapses to a small **STARK OS** chip. Tap the chip or palm-swipe to restore.
 9. Say “Jarvis, send the suit” (or tap **NANO SUIT**). Cyan/gold plates build onto hands, then arms, then the body in about two seconds. Not a Marvel mesh.
 10. With the suit on, hold one hand **palm out, facing away**, and keep it still. Light + original charge tone for ~2s, then a blast. A house wall should break into chunks and fall apart.

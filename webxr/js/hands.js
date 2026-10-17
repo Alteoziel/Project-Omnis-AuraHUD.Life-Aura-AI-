@@ -94,6 +94,96 @@ export function createHands(renderer, scene) {
   const palmCenter = new THREE.Vector3();
   const camFwd = new THREE.Vector3();
   const fromCam = new THREE.Vector3();
+  const knuckleDir = new THREE.Vector3();
+  const winPos = new THREE.Vector3();
+  const toWin = new THREE.Vector3();
+  const tipPos = new THREE.Vector3();
+  const EXTENDED = 0.112;
+  const CURLED = 0.084;
+  const FINGER_NAMES = ["index", "middle", "ring", "pinky"];
+
+  const measureHand = (hand) => {
+    const wrist = hand.joints.wrist;
+    const indexTip = hand.joints["index-finger-tip"];
+    const pinkyTip = hand.joints["pinky-finger-tip"];
+    const thumbTip = hand.joints["thumb-tip"];
+    const midProx = hand.joints["middle-finger-phalanx-proximal"] || hand.joints["middle-finger-metacarpal"];
+    if (!wrist || !indexTip || !pinkyTip || !thumbTip) {
+      return null;
+    }
+    wrist.getWorldPosition(palmA);
+    indexTip.getWorldPosition(palmB);
+    pinkyTip.getWorldPosition(palmC);
+    thumbTip.getWorldPosition(thumb);
+    let extended = 0;
+    let curled = 0;
+    let counted = 0;
+    FINGER_NAMES.forEach((name) => {
+      const joint = hand.joints[`${name}-finger-tip`];
+      if (!joint) {
+        return;
+      }
+      joint.getWorldPosition(tipPos);
+      const dist = palmA.distanceTo(tipPos);
+      if (dist > EXTENDED) {
+        extended += 1;
+      }
+      if (dist < CURLED) {
+        curled += 1;
+      }
+      counted += 1;
+    });
+    palmNormal.copy(palmB).sub(palmA).cross(toWin.copy(palmC).sub(palmA));
+    if (palmNormal.lengthSq() < 1e-8) {
+      return null;
+    }
+    palmNormal.normalize();
+    palmCenter.copy(palmA).add(palmB).add(palmC).multiplyScalar(1 / 3);
+    if (midProx) {
+      midProx.getWorldPosition(tipPos);
+      knuckleDir.copy(tipPos).sub(palmA);
+    } else {
+      knuckleDir.copy(palmCenter).sub(palmA);
+    }
+    if (knuckleDir.lengthSq() < 1e-8) {
+      return null;
+    }
+    knuckleDir.normalize();
+    return {
+      extended,
+      curled,
+      counted,
+      open: palmA.distanceTo(palmB) > 0.08 && palmA.distanceTo(palmC) > 0.07 && palmB.distanceTo(thumb) > 0.055,
+      palm: palmCenter.clone(),
+      normal: palmNormal.clone(),
+      knuckle: knuckleDir.clone(),
+    };
+  };
+
+  const grabPose = (hand, win) => {
+    const pose = measureHand(hand);
+    if (!pose || pose.counted < 3) {
+      return null;
+    }
+    win.getWorldPosition(winPos);
+    if (pose.palm.distanceTo(winPos) > 0.34) {
+      return null;
+    }
+    toWin.copy(winPos).sub(pose.palm);
+    if (toWin.lengthSq() < 1e-8) {
+      return null;
+    }
+    toWin.normalize();
+    const palmAt = Math.abs(pose.normal.dot(toWin)) > 0.42;
+    const fistAt = pose.knuckle.dot(toWin) > 0.4;
+    if (pose.extended >= 3 && pose.curled === 0 && palmAt) {
+      return "palm";
+    }
+    if (pose.curled >= 3 && pose.extended === 0 && fistAt) {
+      return "fist";
+    }
+    return null;
+  };
 
   const palms = (cameraPos, camQuat) => {
     camFwd.set(0, 0, -1).applyQuaternion(camQuat);
@@ -141,7 +231,16 @@ export function createHands(renderer, scene) {
       .filter(Boolean);
   };
 
-  const interact = ({ targets = [], onSelect, onGrabStart, onGrabMove, onGrabEnd, onSwipe, skipSwipe = false } = {}) => {
+  const interact = ({
+    targets = [],
+    windows = [],
+    onSelect,
+    onGrabStart,
+    onGrabMove,
+    onGrabEnd,
+    onSwipe,
+    skipSwipe = false,
+  } = {}) => {
     targets.forEach((row) => {
       row.userData.controllerHover = false;
     });
@@ -161,24 +260,45 @@ export function createHands(renderer, scene) {
         thumbDot.visible = false;
       }
 
+      const pose = measureHand(hand);
+      const holdPoint = pose?.palm || (joints ? tip.clone() : null);
+
       if (hand.userData.grabbing) {
-        onGrabMove?.(hand.userData.grabbing, tip.clone());
-        if (joints) {
-          const hold = hand.userData.grabbing;
-          hold.getWorldPosition(wristPos);
-          if (tip.distanceTo(wristPos) > 0.2) {
+        const hold = hand.userData.grabbing;
+        if (holdPoint && grabPose(hand, hold)) {
+          hand.userData.releaseFrames = 0;
+          onGrabMove?.(hold, holdPoint);
+        } else {
+          hand.userData.releaseFrames = (hand.userData.releaseFrames || 0) + 1;
+          if (hand.userData.releaseFrames > 5) {
             onGrabEnd?.(hold);
             hand.userData.grabbing = null;
-            hand.userData.poked = false;
+            hand.userData.releaseFrames = 0;
+          } else if (holdPoint) {
+            onGrabMove?.(hold, holdPoint);
           }
         }
         return;
+      }
+
+      if (holdPoint && !hand.userData.grabbing) {
+        const attach = windows.find((win) => grabPose(hand, win));
+        const otherHold = visuals.some((item) => item.hand !== hand && item.hand.userData.grabbing);
+        if (attach && !otherHold && !windows.some((win) => win.userData.grabbed && win !== attach)) {
+          hand.userData.grabbing = attach;
+          hand.userData.releaseFrames = 0;
+          onGrabStart?.(attach, holdPoint);
+          return;
+        }
       }
 
       let pokeTarget = null;
       let pokeKind = null;
       if (joints) {
         targets.forEach((row) => {
+          if (row.userData.kind === "grab") {
+            return;
+          }
           const kind = pokeHit(row, tip);
           if (!kind) {
             return;
@@ -196,12 +316,7 @@ export function createHands(renderer, scene) {
 
       if (pokeKind === "poke" && !hand.userData.poked && pokeTarget) {
         hand.userData.poked = true;
-        if (pokeTarget.userData.kind === "grab") {
-          hand.userData.grabbing = pokeTarget.userData.window || pokeTarget;
-          onGrabStart?.(hand.userData.grabbing, tip.clone());
-        } else {
-          onSelect?.(pokeTarget);
-        }
+        onSelect?.(pokeTarget);
       }
       if (pokeKind !== "poke") {
         hand.userData.poked = false;
@@ -235,6 +350,9 @@ export function createHands(renderer, scene) {
   return {
     interact,
     palms,
+    grabbing() {
+      return visuals.some(({ hand }) => Boolean(hand.userData.grabbing));
+    },
     xrHands: hands,
     fingertips() {
       const tips = [];

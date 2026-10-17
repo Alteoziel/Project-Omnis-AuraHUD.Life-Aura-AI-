@@ -165,7 +165,7 @@ function makeHandle(width) {
     ]),
     lineMat(GOLD, 0.9),
   );
-  const label = makeLabel("GRAB", 360, 72, 32, "#f0c14a");
+  const label = makeLabel("PALM / FIST", 420, 72, 28, "#f0c14a");
   label.position.z = 0.001;
   const pipL = new THREE.Mesh(new THREE.CircleGeometry(0.007, 10), addMat(GOLD, 0.85));
   const pipR = pipL.clone();
@@ -359,9 +359,9 @@ export function createHud() {
 
   const brief = makeBlock(
     [
+      "FLAT PALM OR OUTWARD FIST MOVES A WINDOW",
+      "RELAX TO LEAVE IT  ·  FINGERS ONLY TAP",
       "SAY SEND THE SUIT  ·  PALM OUT TO BLAST",
-      "SAY TAKE THE SUIT OFF  ·  REACH + TAP PANELS",
-      "GRAB BAR SLIDES  ·  PALM SWIPE RECALLS",
     ],
     1180,
     360,
@@ -444,7 +444,8 @@ export function createHud() {
     const restWorld = new THREE.Vector3();
     const unit = new THREE.Vector3(1, 1, 1);
     const ATTRACT = 0.82;
-    const HOLD = 0.05;
+    const HOLD = 0.055;
+    const MIN_CAM = 0.44;
 
     const pull = (node, rest, range = ATTRACT) => {
       if (node.userData.grabbed || node.userData.returning) {
@@ -478,10 +479,10 @@ export function createHud() {
       const homeDist = Math.max(0.22, restWorld.distanceTo(cameraWorld));
       const applyScale = () => {
         node.getWorldPosition(center);
-        const nowDist = Math.max(0.12, center.distanceTo(cameraWorld));
+        const nowDist = Math.max(0.18, center.distanceTo(cameraWorld));
         node.scale.setScalar(Math.min(1, Math.max(0.5, nowDist / homeDist)));
       };
-      if (node.userData.holdForTap || node.userData.docked) {
+      if (node.userData.docked) {
         applyScale();
         node.userData.magnet = true;
         return true;
@@ -493,11 +494,14 @@ export function createHud() {
         fromCam.normalize();
       }
       meet.copy(nearest).addScaledVector(fromCam, HOLD);
+      if (meet.distanceTo(cameraWorld) < MIN_CAM) {
+        meet.copy(cameraWorld).addScaledVector(fromCam, MIN_CAM);
+      }
       const arrive = nearest.distanceTo(center);
       node.parent.worldToLocal(meet);
       node.position.lerp(meet, 1 - Math.exp(-8 * dt));
       applyScale();
-      if (arrive < 0.12) {
+      if (arrive < 0.22) {
         node.userData.docked = true;
       }
       node.userData.magnet = true;

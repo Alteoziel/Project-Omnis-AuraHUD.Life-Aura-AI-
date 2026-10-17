@@ -399,12 +399,12 @@ function tick() {
     house.centerOn(camPos);
   }
   const palms = hands.palms(camPos, followQuat);
-  const skipSwipe = suit.charging || (suit.equipped && palms.some((palm) => palm.facingAway));
+  const skipSwipe = hands.grabbing() || suit.charging || (suit.equipped && palms.some((palm) => palm.facingAway));
   suit.update({
     dt,
     camera,
     hands: hands.xrHands,
-    palms,
+    palms: hands.grabbing() ? [] : palms,
     onBlast(origin, dir) {
       const result = house.blast(origin, dir);
       hud.flashReceipt(result ? `BLAST  ${result.broken} CHUNKS` : "BLAST  MISS", Boolean(result));
@@ -413,6 +413,7 @@ function tick() {
   house.update(dt);
   hands.interact({
     targets: allTargets(),
+    windows: hud.windows,
     skipSwipe,
     onSelect: selectTarget,
     onGrabStart(win, world) {

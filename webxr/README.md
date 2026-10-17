@@ -6,7 +6,7 @@ Mixed-reality Iron Man HUD for **Meta Quest 3 Browser**. This folder is the Ques
 
 - Three.js `immersive-ar` client with color passthrough and optional hand tracking
 - Helmet-locked holographic ring (cyan wireframe, slow counter-rotation)
-- Floating **HOUSE SYSTEMS** and **HOLOCOMM** windows with grab handles
+- Floating **HOUSE SYSTEMS** and **HOLOCOMM** windows (one of each). Flat palm or outward fist moves a window; relax the hand to leave it. Fingers only tap.
 - Reach a panel — it comes to your hand and shrinks. Hover a row, then tap. No laser pointer.
 - Minimize the visor to a **STARK OS** chip; palm-swipe or tap the chip to restore
 - Jarvis (Web Speech) plus a blue holocomm cone with original messengers
