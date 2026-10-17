@@ -111,14 +111,18 @@ URL: https://tony-stark-hud-theta.vercel.app/ (Vercel project `tony-stark-hud`, 
 6. Repeat for **Ceiling Light**. Same reach → hover → tap. If you cannot reach yet, keep the hand out — the panel should come to you.
 7. Grab the gold **GRAB** bar (poke and hold) and slide the window aside. Open-hand **palm swipe** — windows snap home.
 8. Tap **STOW** (gold chip). The HUD collapses to a small **STARK OS** chip. Tap the chip or palm-swipe to restore.
-9. Say “Jarvis, status” then “open holocomm” or tap **THE SAGE**. Heard text appears. A blue cone projects a CC0 Kenney humanoid in hologram material. It idles, then talks while a stylized original line is spoken (TTS). Repeat for masked lord / hooded emperor / young knight. Not film likenesses, not movie audio.
-10. Use the Quest browser exit / **End AR** control. You return to the 2D visor page. **Engage Helmet** works again.
+9. Say “Jarvis, send the suit” (or tap **NANO SUIT**). Cyan/gold plates build onto hands, then arms, then the body in about two seconds. Not a Marvel mesh.
+10. With the suit on, hold one hand **palm out, facing away**, and keep it still. Light + original charge tone for ~2s, then a blast. A house wall should break into chunks and fall apart.
+11. Say “take the suit off.” Armor peels. You are visor + passthrough again.
+12. Say “Jarvis, status” then “open holocomm” or tap **THE SAGE**. Heard text appears. A blue cone projects a CC0 Kenney humanoid in hologram material. It idles, then talks while a stylized original line is spoken (TTS). Repeat for masked lord / hooded emperor / young knight. Not film likenesses, not movie audio.
+13. Use the Quest browser exit / **End AR** control. You return to the 2D visor page. **Engage Helmet** works again.
 
 ### Expected gaps
 
 - House/Alexa is not in this slice. Toggles flip locally and show **ACTUATED**.
-- Hand meshes are fingertip markers, not full skinned hands.
+- Hand meshes are fingertip markers plus nano plates, not full skinned hands.
 - Cloud AI stays off. No API keys. Jarvis and holocomm voices are Web Speech, not a model.
 - Holocomm figures are Kenney Mini Characters (CC0) plus original accessories/lines. Not Disney / Lucasfilm likenesses.
+- No first-encounter / shoot-walls scene exists in this AuraHUD repo (current tree or `19e71e7`). The visor house uses original chunked walls that detach, tumble, and fall — same described feel, not copied meshes.
 
 

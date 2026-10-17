@@ -7,6 +7,7 @@ export const ACTIONS = [
   { id: "desk_light", label: "DESK LIGHT" },
   { id: "ceiling_light", label: "CEILING LIGHT" },
   { id: "scan_room", label: "SCAN ROOM" },
+  { id: "nano_suit", label: "NANO SUIT" },
 ];
 
 function lineMat(color, opacity = 0.9) {
@@ -310,16 +311,16 @@ export function createHud() {
     return win;
   };
 
-  const houseWin = makeWindow("house-window", "HOUSE SYSTEMS", 0.44, 0.4, new THREE.Vector3(0.5, -0.02, 0.02));
+  const houseWin = makeWindow("house-window", "HOUSE SYSTEMS", 0.44, 0.48, new THREE.Vector3(0.5, -0.02, 0.02));
   const buttons = [];
   ACTIONS.forEach((action, index) => {
-    const row = makeActionRow(action);
-    row.position.set(0, 0.06 - index * 0.1, 0.004);
+    const row = makeActionRow(action, 0.4, 0.078);
+    row.position.set(0, 0.12 - index * 0.088, 0.004);
     houseWin.add(row);
     buttons.push(row);
   });
   const receipt = makeLabel("LOCAL  ·  ALEXA PENDING", 720, 80, 32, "#8ad7e4");
-  receipt.position.set(0, -0.22, 0.003);
+  receipt.position.set(0, -0.26, 0.003);
   houseWin.add(receipt);
   stage.add(houseWin);
 
@@ -358,9 +359,9 @@ export function createHud() {
 
   const brief = makeBlock(
     [
-      "REACH A PANEL  ·  IT COMES TO YOUR HAND",
-      "HOVER A ROW  ·  TAP TO ACTUATE",
-      "GRAB BAR TO SLIDE  ·  PALM SWIPE RECALLS",
+      "SAY SEND THE SUIT  ·  PALM OUT TO BLAST",
+      "SAY TAKE THE SUIT OFF  ·  REACH + TAP PANELS",
+      "GRAB BAR SLIDES  ·  PALM SWIPE RECALLS",
     ],
     1180,
     360,

@@ -36,6 +36,7 @@ export function createHands(renderer, scene) {
     hand.userData.grabbing = null;
     hand.userData.palmHist = [];
     hand.userData.swipeAt = 0;
+    hand.userData.stillHist = [];
     return { hand, indexDot, thumbDot };
   });
 
@@ -89,7 +90,58 @@ export function createHands(renderer, scene) {
     return palmA.distanceTo(palmB) > 0.08 && palmA.distanceTo(palmC) > 0.07 && palmB.distanceTo(thumb) > 0.055;
   };
 
-  const interact = ({ targets = [], onSelect, onGrabStart, onGrabMove, onGrabEnd, onSwipe } = {}) => {
+  const palmNormal = new THREE.Vector3();
+  const palmCenter = new THREE.Vector3();
+  const camFwd = new THREE.Vector3();
+  const fromCam = new THREE.Vector3();
+
+  const palms = (cameraPos, camQuat) => {
+    camFwd.set(0, 0, -1).applyQuaternion(camQuat);
+    return visuals
+      .map(({ hand }, index) => {
+        const wrist = hand.joints.wrist;
+        const indexTip = hand.joints["index-finger-tip"];
+        const pinky = hand.joints["pinky-finger-tip"];
+        const thumbTip = hand.joints["thumb-tip"];
+        if (!wrist || !indexTip || !pinky || !thumbTip) {
+          return null;
+        }
+        wrist.getWorldPosition(palmA);
+        indexTip.getWorldPosition(palmB);
+        pinky.getWorldPosition(palmC);
+        thumbTip.getWorldPosition(thumb);
+        const open = palmA.distanceTo(palmB) > 0.08 && palmA.distanceTo(palmC) > 0.07 && palmB.distanceTo(thumb) > 0.055;
+        palmNormal.copy(palmB).sub(palmA).cross(palmC.clone().sub(palmA));
+        if (palmNormal.lengthSq() < 1e-8) {
+          return null;
+        }
+        palmNormal.normalize();
+        if (palmNormal.dot(camFwd) < 0) {
+          palmNormal.negate();
+        }
+        palmCenter.copy(palmA).add(palmB).add(palmC).multiplyScalar(1 / 3);
+        fromCam.copy(palmCenter).sub(cameraPos).normalize();
+        const facingAway = open && palmNormal.dot(camFwd) > 0.52 && palmNormal.dot(fromCam) > 0.12;
+        const hist = hand.userData.stillHist;
+        hist.push(palmCenter.clone());
+        if (hist.length > 8) {
+          hist.shift();
+        }
+        const still = hist.length > 3 && hist[0].distanceTo(palmCenter) < 0.045;
+        return {
+          hand,
+          index,
+          open,
+          facingAway,
+          still,
+          position: palmCenter.clone(),
+          normal: palmNormal.clone(),
+        };
+      })
+      .filter(Boolean);
+  };
+
+  const interact = ({ targets = [], onSelect, onGrabStart, onGrabMove, onGrabEnd, onSwipe, skipSwipe = false } = {}) => {
     targets.forEach((row) => {
       row.userData.controllerHover = false;
     });
@@ -155,7 +207,7 @@ export function createHands(renderer, scene) {
         hand.userData.poked = false;
       }
 
-      if (joints && palmOpen(hand)) {
+      if (joints && palmOpen(hand) && !skipSwipe) {
         const wrist = hand.joints.wrist || hand.joints["middle-finger-metacarpal"];
         wrist.getWorldPosition(wristPos);
         const hist = hand.userData.palmHist;
@@ -182,6 +234,8 @@ export function createHands(renderer, scene) {
 
   return {
     interact,
+    palms,
+    xrHands: hands,
     fingertips() {
       const tips = [];
       visuals.forEach(({ hand }) => {

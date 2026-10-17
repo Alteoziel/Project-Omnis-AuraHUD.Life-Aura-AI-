@@ -5,6 +5,8 @@ import { createVoice } from "./voice.js";
 import { createBridge } from "./bridge.js";
 import { createHolocomm } from "./holocomm.js";
 import { createJarvis } from "./jarvis.js";
+import { createHouse } from "./house.js";
+import { createSuit } from "./suit.js";
 
 const overlay = document.getElementById("overlay");
 const enterBtn = document.getElementById("enter-ar");
@@ -65,6 +67,9 @@ previewRig.add(dust);
 const floor = new THREE.GridHelper(8, 32, 0x12313a, 0x081820);
 floor.position.y = 0;
 previewRig.add(floor);
+
+const house = createHouse();
+scene.add(house.root);
 
 const hemi = new THREE.HemisphereLight(0x9fefff, 0x05080c, 0.7);
 scene.add(hemi);
@@ -137,7 +142,7 @@ const jarvis = createJarvis({
 function runCommand(command) {
   if (command.type === "minimize") {
     hud.minimize();
-    jarvisReply("Stowing the visor. Pinch the chip when you want it back.");
+    jarvisReply("Stowing the visor. Tap the chip when you want it back.");
     return;
   }
   if (command.type === "restore") {
@@ -156,8 +161,28 @@ function runCommand(command) {
   if (command.type === "status") {
     hud.restore();
     jarvisReply(
-      `All local. Desk ${lightState("desk_light")}. Ceiling ${lightState("ceiling_light")}. Holocomm ${holocomm.active ? "live" : "idle"}.`,
+      `All local. Desk ${lightState("desk_light")}. Ceiling ${lightState("ceiling_light")}. Suit ${suit.on ? "on" : "off"}. Holocomm ${holocomm.active ? "live" : "idle"}.`,
     );
+    return;
+  }
+  if (command.type === "suit") {
+    if (command.on) {
+      suit.send();
+      const row = hud.buttons.find((item) => item.userData.action === "nano_suit");
+      if (row) {
+        hud.setButtonState(row, { on: true });
+      }
+      hud.flashReceipt("NANO SUIT  BUILDING", true);
+      jarvisReply("Nano-armor coming online. Hands, then arms, then the chassis.");
+    } else {
+      suit.dismiss();
+      const row = hud.buttons.find((item) => item.userData.action === "nano_suit");
+      if (row) {
+        hud.setButtonState(row, { on: false });
+      }
+      hud.flashReceipt("NANO SUIT  PEELING", true);
+      jarvisReply("Peeling the suit. Visor only.");
+    }
     return;
   }
   if (command.type === "holo") {
@@ -169,10 +194,11 @@ function runCommand(command) {
     jarvisReply(channel ? `Channel open. ${channel.title}.` : "Holocomm idle.");
     return;
   }
-  jarvisReply("Say status, desk light, minimize, or open holocomm.");
+  jarvisReply("Say send the suit, take the suit off, status, or open holocomm.");
 }
 
 const hands = createHands(renderer, scene);
+const suit = createSuit(scene);
 
 function placePreviewHud() {
   hudAnchor.position.set(0, 1.28, -0.95);
@@ -216,6 +242,13 @@ function fireAction(row) {
     window.setTimeout(() => {
       hud.setButtonState(row, { on: false });
     }, 1200);
+  }
+  if (row.userData.action === "nano_suit") {
+    if (next) {
+      suit.send();
+    } else {
+      suit.dismiss();
+    }
   }
   hud.pulseButton(row);
   bridge.send(row.userData.action, { on: next });
@@ -307,6 +340,7 @@ async function enterAR() {
       snapped = false;
       document.body.classList.remove("is-xr");
       previewRig.visible = true;
+      house.resetCenter();
       renderer.setClearColor(0x000000, 0);
       placePreviewHud();
       enterBtn.disabled = false;
@@ -321,6 +355,7 @@ async function enterAR() {
     try {
       await voice.start();
       await jarvis.start();
+      await suit.unlockAudio();
     } catch {
       voiceEl.textContent = "VOICE DENIED";
     }
@@ -343,7 +378,7 @@ async function initXrButton() {
     return;
   }
   enterBtn.disabled = false;
-  hint.textContent = "Quest 3: Engage Helmet. Reach a panel — it comes to your hand. Hover a row, then tap.";
+  hint.textContent = "Quest 3: Engage Helmet. Say send the suit. Palm out to charge a blast. Reach + tap panels.";
 }
 
 function tick() {
@@ -359,8 +394,26 @@ function tick() {
   voice.sample();
   hud.setVoiceLevel(voiceLevel);
   camera.getWorldPosition(camPos);
+  camera.getWorldQuaternion(followQuat);
+  if (xrActive) {
+    house.centerOn(camPos);
+  }
+  const palms = hands.palms(camPos, followQuat);
+  const skipSwipe = suit.charging || (suit.equipped && palms.some((palm) => palm.facingAway));
+  suit.update({
+    dt,
+    camera,
+    hands: hands.xrHands,
+    palms,
+    onBlast(origin, dir) {
+      const result = house.blast(origin, dir);
+      hud.flashReceipt(result ? `BLAST  ${result.broken} CHUNKS` : "BLAST  MISS", Boolean(result));
+    },
+  });
+  house.update(dt);
   hands.interact({
     targets: allTargets(),
+    skipSwipe,
     onSelect: selectTarget,
     onGrabStart(win, world) {
       win.userData.grabbed = true;
@@ -457,6 +510,14 @@ window.addEventListener("click", (event) => {
   const row = hoverFromPointer(event.clientX, event.clientY);
   if (row && row.userData.kind !== "grab") {
     selectTarget(row);
+    return;
+  }
+  if (suit.equipped && !row) {
+    camera.getWorldPosition(camPos);
+    camera.getWorldQuaternion(followQuat);
+    const dir = new THREE.Vector3(0, 0, -1).applyQuaternion(followQuat);
+    const result = house.blast(camPos, dir);
+    hud.flashReceipt(result ? `BLAST  ${result.broken} CHUNKS` : "BLAST  MISS", Boolean(result));
   }
 });
 enterBtn.addEventListener("click", () => {
@@ -466,6 +527,7 @@ voiceBtn.addEventListener("click", async () => {
   try {
     await voice.start();
     await jarvis.start();
+    await suit.unlockAudio();
     setBootCopy("JARVIS CHANNEL OPEN");
   } catch {
     voiceEl.textContent = "VOICE DENIED";

@@ -15,6 +15,12 @@ export function parseCommand(raw) {
   if (/(restor|maximi|expand|visor up|full hud|wake visor|bring it back)/.test(text)) {
     return { type: "restore" };
   }
+  if (/(take (the )?suit off|suit off|armor off|remove (the )?(suit|armor)|stand down|peel (the )?suit)/.test(text)) {
+    return { type: "suit", on: false };
+  }
+  if (/(send the suit|suit up|deploy (the )?suit|armor on|nano.?suit|send (the )?armor)/.test(text)) {
+    return { type: "suit", on: true };
+  }
   if (/desk/.test(text)) {
     return { type: "toggle", id: "desk_light" };
   }
