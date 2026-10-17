@@ -89,4 +89,33 @@ URL: `/money`.
 4. Micro-sacrifice sentence is checkable: 2 × $22 / week toward $800.
 5. Reload: spends, impulses, and rate persist.
 
+---
+
+## WebXR — Iron Man visor (Quest 3)
+
+URL: the HTTPS deploy of `webxr/` (Vercel). Devices: **Meta Quest 3 Browser** first, desktop Chromium only for the cinematic preview.
+
+### Desktop preview (optional)
+
+1. Open the HTTPS URL on a computer. The page is near-black with a glowing cyan HUD ring, a HOUSE SYSTEMS panel, and a voice orb. It should feel like a visor, not a tutorial cube.
+2. Click **Desk Light**. The row lights and the receipt reads `QUEUED desk_light` unless something is listening on `ws://localhost:8000`.
+3. Click **Open Audio**, allow the mic, and speak. The orb swells and the chrome says **VOICE LIVE**.
+
+### Quest 3 — put the helmet on
+
+1. On the headset, open **Meta Quest Browser** (the system browser).
+2. Go to the HTTPS URL. Do not use a `http://` LAN address.
+3. Tap **Engage Helmet**. Allow camera / microphone if the browser asks.
+4. Passthrough stays on — you still see the real room. A cyan holographic ring locks in front of your face and slowly rotates.
+5. Look at **HOUSE SYSTEMS**. Pinch thumb to index on **Desk Light**, then **Ceiling Light**. Each toggle lights. If a bridge is running at `ws://localhost:8000`, it gets `{"action":"desk_light",...}` / `{"action":"ceiling_light",...}`.
+6. Pinch **Scan Room**. The ring flashes a scan sweep. Socket payload action is `scan_room`.
+7. Speak while the visor is up. The left orb pulses with your voice.
+8. Use the Quest browser exit / **End AR** control. You return to the 2D visor page. **Engage Helmet** works again.
+
+### Expected gaps
+
+- The home bridge is not in this slice. Without `ws://localhost:8000`, toggles still flip locally and show **QUEUED**.
+- Hand meshes are fingertip markers, not full skinned hands.
+- Cloud AI stays off. No API keys.
+
 

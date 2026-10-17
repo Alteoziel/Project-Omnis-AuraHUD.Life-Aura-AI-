@@ -19,6 +19,7 @@ Security, supply-chain, and code-quality checks stay on every PR.
 | **FOSSA** | [`.github/workflows/fossa-license.yml`](.github/workflows/fossa-license.yml) | License / SCA gate |
 | **Dependabot** | [`.github/dependabot.yml`](.github/dependabot.yml) | Dependency updates for governance, dashboard, Actions |
 | **IaC stub** | [`infra/terraform/`](infra/terraform/) | Checkov scan target |
+| **Quest 3 visor (WebXR)** | [`webxr/`](webxr/) | Iron Man mixed-reality HUD — Three.js `immersive-ar`, beside the product (does not replace `web/`) |
 
 Operator setup: [`SETUP_GOVERNANCE.md`](SETUP_GOVERNANCE.md)  
 Human checklist: [`SECURITY_OPERATOR_CHECKLIST.md`](SECURITY_OPERATOR_CHECKLIST.md)  
