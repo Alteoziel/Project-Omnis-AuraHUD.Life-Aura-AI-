@@ -3,6 +3,8 @@ import { createHud } from "./hud.js";
 import { createHands } from "./hands.js";
 import { createVoice } from "./voice.js";
 import { createBridge } from "./bridge.js";
+import { createHolocomm } from "./holocomm.js";
+import { createJarvis } from "./jarvis.js";
 
 const overlay = document.getElementById("overlay");
 const enterBtn = document.getElementById("enter-ar");
@@ -91,9 +93,84 @@ const voice = createVoice({
     voiceLevel = level;
   },
   onState(state) {
-    voiceEl.textContent = state === "live" ? "VOICE LIVE" : "VOICE STANDBY";
+    voiceEl.textContent = state === "live" ? "JARVIS LIVE" : "VOICE STANDBY";
   },
 });
+
+const holocomm = createHolocomm();
+holocomm.root.position.set(0, -0.14, 0.08);
+hud.stage.add(holocomm.root);
+
+const grabOffset = new THREE.Vector3();
+const localPinch = new THREE.Vector3();
+const dragPoint = new THREE.Vector3();
+
+const allTargets = () => [hud.chip, ...hud.windows.map((win) => win.userData.handle), ...hud.buttons, ...hud.holoButtons];
+
+function lightState(id) {
+  const row = hud.buttons.find((item) => item.userData.action === id);
+  return row?.userData.on ? "live" : "dark";
+}
+
+function jarvisReply(line) {
+  hud.setReply(line);
+  jarvis.speak(line);
+}
+
+const jarvis = createJarvis({
+  onHeard(text) {
+    hud.setHeard(text);
+  },
+  onCommand(command) {
+    runCommand(command);
+  },
+  onState(state) {
+    if (state === "live") {
+      voiceEl.textContent = "JARVIS LIVE";
+    } else if (state === "unavailable") {
+      voiceEl.textContent = "JARVIS OFF";
+      hud.setReply("WEB SPEECH UNAVAILABLE — PINCH STILL WORKS");
+    }
+  },
+});
+
+function runCommand(command) {
+  if (command.type === "minimize") {
+    hud.minimize();
+    jarvisReply("Stowing the visor. Pinch the chip when you want it back.");
+    return;
+  }
+  if (command.type === "restore") {
+    hud.restore();
+    jarvisReply("Visor up.");
+    return;
+  }
+  if (command.type === "toggle") {
+    const row = hud.buttons.find((item) => item.userData.action === command.id);
+    if (row) {
+      fireAction(row);
+    }
+    jarvisReply("Done. Still local. Alexa is pending.");
+    return;
+  }
+  if (command.type === "status") {
+    hud.restore();
+    jarvisReply(
+      `All local. Desk ${lightState("desk_light")}. Ceiling ${lightState("ceiling_light")}. Holocomm ${holocomm.active ? "live" : "idle"}.`,
+    );
+    return;
+  }
+  if (command.type === "holo") {
+    hud.restore();
+    const channel = holocomm.open(command.id);
+    hud.holoButtons.forEach((row) => {
+      hud.setButtonState(row, { on: row.userData.action === channel?.id });
+    });
+    jarvisReply(channel ? `Channel open. ${channel.title}. ${channel.line}` : "Holocomm idle.");
+    return;
+  }
+  jarvisReply("Say status, desk light, minimize, or open holocomm.");
+}
 
 const hands = createHands(renderer, scene);
 
@@ -145,19 +222,45 @@ function fireAction(row) {
   hud.flashReceipt(`ACTUATED  ${row.userData.action}`, true);
 }
 
+function selectTarget(target) {
+  if (!target) {
+    return;
+  }
+  if (target.userData.kind === "chip") {
+    hud.toggleMinimize();
+    hud.setReply(hud.minimized ? "VISOR STOWED" : "VISOR UP");
+    return;
+  }
+  if (target.userData.kind === "holo") {
+    hud.restore();
+    const channel = holocomm.open(target.userData.action);
+    hud.holoButtons.forEach((row) => {
+      hud.setButtonState(row, { on: row.userData.action === channel?.id });
+    });
+    hud.pulseButton(target);
+    hud.flashReceipt(`HOLOCOMM  ${channel.title}`, true);
+    jarvis.speak(channel.line);
+    hud.setReply(channel.line);
+    return;
+  }
+  if (target.userData.kind === "toggle" || target.userData.action) {
+    fireAction(target);
+  }
+}
+
 function hoverFromPointer(clientX, clientY) {
   pointer.x = (clientX / window.innerWidth) * 2 - 1;
   pointer.y = -(clientY / window.innerHeight) * 2 + 1;
   raycaster.setFromCamera(pointer, camera);
   const hits = raycaster.intersectObjects(
-    hud.buttons.map((row) => row.userData.hit),
+    allTargets().map((row) => row.userData.hit),
     false,
   );
-  hud.buttons.forEach((row) => {
-    const hovered = hits[0] && hits[0].object === row.userData.hit;
-    hud.setButtonState(row, { hover: Boolean(hovered) });
+  const hovered = hits[0]?.object?.parent ?? null;
+  [...hud.buttons, ...hud.holoButtons].forEach((row) => {
+    hud.setButtonState(row, { hover: hovered === row });
   });
-  return hits[0]?.object?.parent ?? null;
+  return hovered;
 }
 
 function onResize() {
@@ -218,6 +321,7 @@ async function enterAR() {
     renderer.setClearColor(0x000000, 0);
     try {
       await voice.start();
+      await jarvis.start();
     } catch {
       voiceEl.textContent = "VOICE DENIED";
     }
@@ -240,7 +344,7 @@ async function initXrButton() {
     return;
   }
   enterBtn.disabled = false;
-  hint.textContent = "Quest 3: Engage Helmet. Point the beam at a toggle, then pinch.";
+  hint.textContent = "Quest 3: Engage Helmet. Reach a panel — it comes to your hand. Hover, then tap.";
 }
 
 function tick() {
@@ -255,30 +359,101 @@ function tick() {
   }
   voice.sample();
   hud.setVoiceLevel(voiceLevel);
-  hands.interact(hud.buttons, fireAction);
-  hud.buttons.forEach((row) => {
-    const hover = Boolean(row.userData.hover || row.userData.controllerHover);
-    hud.setButtonState(row, { hover });
+  camera.getWorldPosition(camPos);
+  hud.magnetize(hands.fingertips(), camPos, dt);
+  hands.interact({
+    targets: allTargets(),
+    onSelect: selectTarget,
+    onGrabStart(win, world) {
+      win.userData.grabbed = true;
+      win.userData.returning = false;
+      win.parent.worldToLocal(localPinch.copy(world));
+      grabOffset.copy(win.position).sub(localPinch);
+    },
+    onGrabMove(win, world) {
+      win.parent.worldToLocal(localPinch.copy(world));
+      win.position.copy(localPinch).add(grabOffset);
+    },
+    onGrabEnd(win) {
+      win.userData.grabbed = false;
+      win.userData.rest.copy(win.position);
+    },
+    onSwipe() {
+      if (hud.minimized) {
+        hud.restore();
+      } else {
+        hud.recallWindows();
+      }
+    },
   });
+  [...hud.buttons, ...hud.holoButtons].forEach((row) => {
+    hud.setButtonState(row, { hover: Boolean(row.userData.hover || row.userData.controllerHover) });
+  });
+  holocomm.update(dt, elapsed);
   hud.update(dt, elapsed);
   clockEl.textContent = new Date().toISOString().slice(11, 19) + "Z";
   renderer.render(scene, camera);
 }
 
+let dragWin = null;
+let pointerDirty = false;
+
 placePreviewHud();
 window.addEventListener("resize", onResize);
 window.addEventListener("pointermove", (event) => {
-  if (!xrActive) {
-    hoverFromPointer(event.clientX, event.clientY);
+  if (xrActive) {
+    return;
+  }
+  hoverFromPointer(event.clientX, event.clientY);
+  if (dragWin) {
+    const plane = new THREE.Plane().setFromNormalAndCoplanarPoint(
+      new THREE.Vector3(0, 0, 1).applyQuaternion(hudAnchor.quaternion),
+      dragWin.getWorldPosition(dragPoint),
+    );
+    const hit = new THREE.Vector3();
+    if (raycaster.ray.intersectPlane(plane, hit)) {
+      dragWin.parent.worldToLocal(hit);
+      dragWin.position.copy(hit).add(grabOffset);
+      pointerDirty = true;
+    }
   }
 });
-window.addEventListener("click", (event) => {
+window.addEventListener("pointerdown", (event) => {
   if (xrActive) {
     return;
   }
   const row = hoverFromPointer(event.clientX, event.clientY);
-  if (row) {
-    fireAction(row);
+  if (row?.userData.kind === "grab") {
+    dragWin = row.userData.window;
+    dragWin.userData.grabbed = true;
+    dragWin.userData.returning = false;
+    const plane = new THREE.Plane().setFromNormalAndCoplanarPoint(
+      new THREE.Vector3(0, 0, 1).applyQuaternion(hudAnchor.quaternion),
+      dragWin.getWorldPosition(dragPoint),
+    );
+    const hit = new THREE.Vector3();
+    if (raycaster.ray.intersectPlane(plane, hit)) {
+      dragWin.parent.worldToLocal(hit);
+      grabOffset.copy(dragWin.position).sub(hit);
+    }
+    pointerDirty = false;
+  }
+});
+window.addEventListener("pointerup", () => {
+  if (dragWin) {
+    dragWin.userData.grabbed = false;
+    dragWin.userData.rest.copy(dragWin.position);
+    dragWin = null;
+  }
+});
+window.addEventListener("click", (event) => {
+  if (xrActive || pointerDirty) {
+    pointerDirty = false;
+    return;
+  }
+  const row = hoverFromPointer(event.clientX, event.clientY);
+  if (row && row.userData.kind !== "grab") {
+    selectTarget(row);
   }
 });
 enterBtn.addEventListener("click", () => {
@@ -287,7 +462,8 @@ enterBtn.addEventListener("click", () => {
 voiceBtn.addEventListener("click", async () => {
   try {
     await voice.start();
-    setBootCopy("AUDIO CHANNEL OPEN");
+    await jarvis.start();
+    setBootCopy("JARVIS CHANNEL OPEN");
   } catch {
     voiceEl.textContent = "VOICE DENIED";
     setBootCopy("MICROPHONE BLOCKED");

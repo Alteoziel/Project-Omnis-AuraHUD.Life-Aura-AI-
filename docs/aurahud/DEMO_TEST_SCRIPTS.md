@@ -106,17 +106,19 @@ URL: https://tony-stark-hud-theta.vercel.app/ (Vercel project `tony-stark-hud`, 
 1. On the headset, open **Meta Quest Browser** (the system browser).
 2. Go to the HTTPS URL. Do not use a `http://` LAN address.
 3. Tap **Engage Helmet**. Allow camera / microphone if the browser asks.
-4. Passthrough stays on — you still see the real room. A cyan holographic ring locks in front of your face and slowly rotates.
-5. A cyan beam should come off your hand. Point it at **HOUSE SYSTEMS** — the row brightens and a cursor sits on it. You do not walk up and poke the panel.
-6. Pinch thumb to index (or squeeze) on **Desk Light**, then **Ceiling Light**. Each row flashes and says `ACTUATED`. Lights stay local.
-7. Pinch **Scan Room**. The ring flashes a scan sweep.
-8. The plaque under the ring stays visible: point + pinch, helmet lock, voice orb. Speak — the left orb pulses.
-9. Use the Quest browser exit / **End AR** control. You return to the 2D visor page. **Engage Helmet** works again.
+4. Passthrough stays on — you still see the real room. A cyan holographic ring locks in front of your face and slowly rotates. HOUSE SYSTEMS is on the right, HOLOCOMM on the left.
+5. Reach an open hand toward **HOUSE SYSTEMS**. The window should slide toward your hand and shrink (same visual size, nearer). Hover **Desk Light** with your index fingertip — the row brightens. Tap / poke. It flashes `ACTUATED`. Lights stay local.
+6. Repeat for **Ceiling Light**. If a panel is still far, point the cyan pinch-beam and pinch thumb + index (backup).
+7. Grab the gold **GRAB** bar and slide the window aside. Open-hand **palm swipe** — windows snap home.
+8. Pinch **STOW** (gold chip). The HUD collapses to a small **STARK OS** chip. Pinch the chip or palm-swipe to restore.
+9. Say “Jarvis, status” then “open holocomm” or poke **THE SAGE**. Heard text appears. A blue cone projects an original figure with an original line. Repeat for masked lord / hooded emperor / young knight.
+10. Use the Quest browser exit / **End AR** control. You return to the 2D visor page. **Engage Helmet** works again.
 
 ### Expected gaps
 
 - House/Alexa is not in this slice. Toggles flip locally and show **ACTUATED**.
-- Hand meshes are fingertip markers, not full skinned hands.
-- Cloud AI stays off. No API keys.
+- Hand meshes are fingertip markers + a beam, not full skinned hands.
+- Cloud AI stays off. No API keys. Jarvis is Web Speech, not a model.
+- Holocomm figures are original silhouettes, not film likenesses.
 
 

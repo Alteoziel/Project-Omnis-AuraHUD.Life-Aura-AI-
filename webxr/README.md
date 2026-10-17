@@ -6,10 +6,12 @@ Mixed-reality Iron Man HUD for **Meta Quest 3 Browser**. This folder is the Ques
 
 - Three.js `immersive-ar` client with color passthrough and optional hand tracking
 - Helmet-locked holographic ring (cyan wireframe, slow counter-rotation)
-- Floating **HOUSE SYSTEMS** panel: Desk Light, Ceiling Light, Scan Room
-- Point a hand ray at a toggle, then pinch (thumb + index) or squeeze to actuate. Lights stay local until Alexa is wired.
-- Voice orb pulses from microphone RMS
-- Desktop fallback is a cinematic preview (click toggles; no passthrough)
+- Floating **HOUSE SYSTEMS** and **HOLOCOMM** windows with grab handles
+- Reach a panel — it comes to your hand and shrinks. Hover a row, then tap/poke. Pinch-beam is the backup.
+- Minimize the visor to a **STARK OS** chip; palm-swipe or pinch the chip to restore
+- Jarvis (Web Speech) plus a blue holocomm cone with original messengers
+- Lights stay local until Alexa is wired
+- Desktop fallback is a cinematic preview (click / drag; no passthrough)
 
 Live HTTPS: https://tony-stark-hud-theta.vercel.app/
 
@@ -19,7 +21,7 @@ Live HTTPS: https://tony-stark-hud-theta.vercel.app/
 2. Allow camera / microphone if asked.
 3. Tap **Engage Helmet**.
 4. The room stays visible through passthrough. The visor locks about a meter in front of you.
-5. Point the cyan beam at a HOUSE SYSTEMS row. Pinch thumb to index. Do not walk up to poke the panel.
+5. Reach toward HOUSE SYSTEMS. The window comes to your hand. Hover a row, then tap. Pinch-beam still works if it is far.
 
 ## Deploy
 
