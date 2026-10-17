@@ -370,10 +370,12 @@ export function createHud() {
   brief.position.set(0, -0.68, 0.02);
   stage.add(brief);
 
+  const chipNear = new THREE.Vector3(0.1, 0.08, 0.5);
+  const chipHome = new THREE.Vector3(0, 0.04, 0.5);
   const chip = new THREE.Group();
-  chip.position.set(0.34, 0.34, 0.03);
+  chip.position.copy(chipNear);
   const chipHit = new THREE.Mesh(
-    new THREE.PlaneGeometry(0.18, 0.072),
+    new THREE.PlaneGeometry(0.12, 0.05),
     new THREE.MeshBasicMaterial({
       color: 0x0a2430,
       transparent: true,
@@ -383,11 +385,11 @@ export function createHud() {
   );
   const chipEdge = new THREE.LineLoop(
     new THREE.BufferGeometry().setFromPoints([
-      new THREE.Vector3(-0.09, 0.036, 0),
-      new THREE.Vector3(0.09, 0.036, 0),
-      new THREE.Vector3(0.09, -0.036, 0),
-      new THREE.Vector3(-0.09, -0.036, 0),
-      new THREE.Vector3(-0.09, 0.036, 0),
+      new THREE.Vector3(-0.06, 0.025, 0),
+      new THREE.Vector3(0.06, 0.025, 0),
+      new THREE.Vector3(0.06, -0.025, 0),
+      new THREE.Vector3(-0.06, -0.025, 0),
+      new THREE.Vector3(-0.06, 0.025, 0),
     ]),
     lineMat(GOLD, 0.95),
   );
@@ -527,13 +529,8 @@ export function createHud() {
       compact += (wantCompact - compact) * Math.min(1, dt * 8);
       stage.scale.setScalar(1 - compact * 0.92);
       stage.visible = compact < 0.88;
-      chip.scale.setScalar(0.85 + compact * 1.15);
-      if (!chip.userData.magnet) {
-        chip.position.lerp(
-          new THREE.Vector3(compact > 0.5 ? 0 : 0.34, compact > 0.5 ? 0.02 : 0.34, 0.03),
-          Math.min(1, dt * 6),
-        );
-      }
+      chip.scale.setScalar(1 + compact * 0.2);
+      chip.position.lerp(compact > 0.5 ? chipHome : chipNear, Math.min(1, dt * 6));
       outer.rotation.z -= dt * 0.12;
       ticks.rotation.z += dt * 0.08;
       orbit.rotation.z -= dt * 0.22;

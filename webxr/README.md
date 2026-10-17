@@ -8,7 +8,7 @@ Mixed-reality Iron Man HUD for **Meta Quest 3 Browser**. This folder is the Ques
 - Helmet-locked holographic ring (cyan wireframe, slow counter-rotation)
 - Floating **HOUSE SYSTEMS** and **HOLOCOMM** windows (one of each). **Pinch thumb + index** to move a window; release to drop it. Hover / tap never grabs.
 - Windows do not follow hands. Hands-in eases them to the HUD dock and they stay. Hover a row, then tap. No laser pointer.
-- Minimize the visor with the on-visor **TAP STOW** chip (or “minimize”); the **STARK OS** chip, a swipe, or “restore” brings it back
+- Minimize the visor with the near-field **TAP STOW** chip (~0.4 m, not out with the windows). “Minimize”, the **STARK OS** chip, a swipe, or “restore” brings it back
 - Jarvis (Web Speech) plus a blue holocomm cone with original messengers. Commands commit after ~2.2s of silence so a breath does not cut you off. Heard text stays on the visor.
 - Say **send the suit** — original cyan/gold nano-armor builds hands → arms → body (~2s). **Take the suit off** peels it.
 - Suit on: hold a palm out (facing away) to charge ~2s, then blast. Chunks sit on the Quest room mesh / detected planes when Space Setup + spatial permission are available; otherwise a generic box after ~4s.
