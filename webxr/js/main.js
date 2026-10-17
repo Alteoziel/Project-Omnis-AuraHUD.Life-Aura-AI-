@@ -394,7 +394,7 @@ async function initXrButton() {
   }
   enterBtn.disabled = false;
   hint.textContent =
-    "Quest 3: Engage Helmet. Pinch thumb+index to move a window. Tap to actuate. Say send the suit.";
+    "Quest 3: Engage Helmet. Pinch to move a window. Hands-in homes the dock. Tap to actuate.";
 }
 
 function tick(_time, frame) {
@@ -462,7 +462,7 @@ function tick(_time, frame) {
     win.userData.holdForTap = win.children.some((child) => child.userData.controllerHover);
   });
   hud.chip.userData.holdForTap = Boolean(hud.chip.userData.controllerHover);
-  hud.magnetize(hands.fingertips(), camPos, dt);
+  hud.settle(hands.fingertips(), camPos, dt);
   [...hud.buttons, ...hud.holoButtons].forEach((row) => {
     hud.setButtonState(row, { hover: Boolean(row.userData.hover || row.userData.controllerHover) });
   });

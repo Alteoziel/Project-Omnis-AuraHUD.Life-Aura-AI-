@@ -360,8 +360,8 @@ export function createHud() {
   const brief = makeBlock(
     [
       "PINCH THUMB + INDEX TO MOVE A WINDOW",
-      "RELEASE TO DROP  ·  HOVER / TAP NEVER GRABS",
-      "SAY SEND THE SUIT  ·  PALM OUT TO BLAST",
+      "HANDS IN HOMES THE DOCK  ·  WINDOWS DO NOT FOLLOW",
+      "HOVER / TAP TO ACTUATE  ·  PALM OUT TO BLAST",
     ],
     1180,
     360,
@@ -437,84 +437,42 @@ export function createHud() {
     });
   };
 
-  const magnetize = (tips, cameraWorld, dt) => {
-    const center = new THREE.Vector3();
-    const meet = new THREE.Vector3();
-    const fromCam = new THREE.Vector3();
-    const restWorld = new THREE.Vector3();
-    const unit = new THREE.Vector3(1, 1, 1);
-    const ATTRACT = 0.82;
-    const HOLD = 0.055;
-    const MIN_CAM = 0.44;
+  const HANDS_IN = 0.56;
+  const HANDS_OUT = 0.74;
+  const unit = new THREE.Vector3(1, 1, 1);
+  let handsNear = false;
 
-    const pull = (node, rest, range = ATTRACT) => {
-      if (node.userData.grabbed || node.userData.returning) {
-        node.userData.docked = false;
-        return false;
-      }
-      node.updateMatrixWorld(true);
-      node.getWorldPosition(center);
-      if (node.parent) {
-        node.parent.localToWorld(restWorld.copy(rest));
-      } else {
-        restWorld.copy(rest);
-      }
-      let nearest = null;
-      let dist = range;
-      tips.forEach((tip) => {
-        const d = Math.min(tip.distanceTo(center), tip.distanceTo(restWorld));
-        if (d < dist) {
-          dist = d;
-          nearest = tip;
-        }
-      });
-      if (!nearest || !node.parent) {
-        node.userData.docked = false;
-        node.userData.magnet = false;
-        node.position.lerp(rest, 1 - Math.exp(-5 * dt));
-        node.scale.lerp(unit, 1 - Math.exp(-5 * dt));
-        return false;
-      }
-      node.parent.localToWorld(restWorld.copy(rest));
-      const homeDist = Math.max(0.22, restWorld.distanceTo(cameraWorld));
-      const applyScale = () => {
-        node.getWorldPosition(center);
-        const nowDist = Math.max(0.18, center.distanceTo(cameraWorld));
-        node.scale.setScalar(Math.min(1, Math.max(0.5, nowDist / homeDist)));
-      };
-      if (node.userData.docked) {
-        applyScale();
-        node.userData.magnet = true;
-        return true;
-      }
-      fromCam.copy(nearest).sub(cameraWorld);
-      if (fromCam.lengthSq() < 1e-8) {
-        fromCam.set(0, 0, -1);
-      } else {
-        fromCam.normalize();
-      }
-      meet.copy(nearest).addScaledVector(fromCam, HOLD);
-      if (meet.distanceTo(cameraWorld) < MIN_CAM) {
-        meet.copy(cameraWorld).addScaledVector(fromCam, MIN_CAM);
-      }
-      const arrive = nearest.distanceTo(center);
-      node.parent.worldToLocal(meet);
-      node.position.lerp(meet, 1 - Math.exp(-8 * dt));
-      applyScale();
-      if (arrive < 0.22) {
-        node.userData.docked = true;
-      }
-      node.userData.magnet = true;
-      return true;
-    };
-
+  const settle = (tips, cameraWorld, dt) => {
     chip.userData.magnet = false;
-    if (wantCompact > 0.5) {
-      chip.userData.magnet = pull(chip, new THREE.Vector3(0, 0.02, 0.03), 0.5);
-      return;
+    chip.userData.docked = false;
+
+    let nearest = Infinity;
+    tips.forEach((tip) => {
+      nearest = Math.min(nearest, tip.distanceTo(cameraWorld));
+    });
+    const wasNear = handsNear;
+    if (tips.length && nearest < HANDS_IN) {
+      handsNear = true;
+    } else if (!tips.length || nearest > HANDS_OUT) {
+      handsNear = false;
     }
+    if (handsNear && !wasNear) {
+      recallWindows();
+    }
+
     windows.forEach((win) => {
-      pull(win, win.userData.rest, ATTRACT);
+      win.userData.magnet = false;
+      win.userData.docked = false;
+      if (win.userData.grabbed) {
+        return;
+      }
+      if (handsNear) {
+        win.userData.rest.copy(win.userData.home);
+      }
+      if (!win.userData.returning) {
+        win.position.lerp(win.userData.rest, 1 - Math.exp(-5 * dt));
+      }
+      win.scale.lerp(unit, 1 - Math.exp(-6 * dt));
     });
   };
 
@@ -553,7 +511,7 @@ export function createHud() {
       setCompact(wantCompact < 0.5);
     },
     recallWindows,
-    magnetize,
+    settle,
     setVoiceLevel(level) {
       const active = level > 0.035;
       const pulse = 1 + Math.min(0.55, level * 3.4);
