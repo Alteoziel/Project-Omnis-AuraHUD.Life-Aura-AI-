@@ -127,9 +127,9 @@ const jarvis = createJarvis({
   onState(state) {
     if (state === "live") {
       voiceEl.textContent = "JARVIS LIVE";
-    } else if (state === "unavailable") {
+    } else     if (state === "unavailable") {
       voiceEl.textContent = "JARVIS OFF";
-      hud.setReply("WEB SPEECH UNAVAILABLE — PINCH STILL WORKS");
+      hud.setReply("WEB SPEECH UNAVAILABLE — TAP STILL WORKS");
     }
   },
 });
@@ -166,7 +166,7 @@ function runCommand(command) {
     hud.holoButtons.forEach((row) => {
       hud.setButtonState(row, { on: row.userData.action === channel?.id });
     });
-    jarvisReply(channel ? `Channel open. ${channel.title}. ${channel.line}` : "Holocomm idle.");
+    jarvisReply(channel ? `Channel open. ${channel.title}.` : "Holocomm idle.");
     return;
   }
   jarvisReply("Say status, desk light, minimize, or open holocomm.");
@@ -239,7 +239,6 @@ function selectTarget(target) {
     });
     hud.pulseButton(target);
     hud.flashReceipt(`HOLOCOMM  ${channel.title}`, true);
-    jarvis.speak(channel.line);
     hud.setReply(channel.line);
     return;
   }
@@ -344,7 +343,7 @@ async function initXrButton() {
     return;
   }
   enterBtn.disabled = false;
-  hint.textContent = "Quest 3: Engage Helmet. Reach a panel — it comes to your hand. Hover, then tap.";
+  hint.textContent = "Quest 3: Engage Helmet. Reach a panel — it comes to your hand. Hover a row, then tap.";
 }
 
 function tick() {
@@ -360,7 +359,6 @@ function tick() {
   voice.sample();
   hud.setVoiceLevel(voiceLevel);
   camera.getWorldPosition(camPos);
-  hud.magnetize(hands.fingertips(), camPos, dt);
   hands.interact({
     targets: allTargets(),
     onSelect: selectTarget,
@@ -386,6 +384,11 @@ function tick() {
       }
     },
   });
+  hud.windows.forEach((win) => {
+    win.userData.holdForTap = win.children.some((child) => child.userData.controllerHover);
+  });
+  hud.chip.userData.holdForTap = Boolean(hud.chip.userData.controllerHover);
+  hud.magnetize(hands.fingertips(), camPos, dt);
   [...hud.buttons, ...hud.holoButtons].forEach((row) => {
     hud.setButtonState(row, { hover: Boolean(row.userData.hover || row.userData.controllerHover) });
   });

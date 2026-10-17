@@ -107,18 +107,18 @@ URL: https://tony-stark-hud-theta.vercel.app/ (Vercel project `tony-stark-hud`, 
 2. Go to the HTTPS URL. Do not use a `http://` LAN address.
 3. Tap **Engage Helmet**. Allow camera / microphone if the browser asks.
 4. Passthrough stays on — you still see the real room. A cyan holographic ring locks in front of your face and slowly rotates. HOUSE SYSTEMS is on the right, HOLOCOMM on the left.
-5. Reach an open hand toward **HOUSE SYSTEMS**. The window should slide toward your hand and shrink (same visual size, nearer). Hover **Desk Light** with your index fingertip — the row brightens. Tap / poke. It flashes `ACTUATED`. Lights stay local.
-6. Repeat for **Ceiling Light**. If a panel is still far, point the cyan pinch-beam and pinch thumb + index (backup).
-7. Grab the gold **GRAB** bar and slide the window aside. Open-hand **palm swipe** — windows snap home.
-8. Pinch **STOW** (gold chip). The HUD collapses to a small **STARK OS** chip. Pinch the chip or palm-swipe to restore.
-9. Say “Jarvis, status” then “open holocomm” or poke **THE SAGE**. Heard text appears. A blue cone projects an original figure with an original line. Repeat for masked lord / hooded emperor / young knight.
+5. Reach an open hand toward **HOUSE SYSTEMS**. The window should slide toward your hand and shrink (same visual size, nearer). Hover **Desk Light** with your index fingertip — the row brightens. Tap / poke the row. It flashes `ACTUATED`. Lights stay local. There is no laser / pinch-beam.
+6. Repeat for **Ceiling Light**. Same reach → hover → tap. If you cannot reach yet, keep the hand out — the panel should come to you.
+7. Grab the gold **GRAB** bar (poke and hold) and slide the window aside. Open-hand **palm swipe** — windows snap home.
+8. Tap **STOW** (gold chip). The HUD collapses to a small **STARK OS** chip. Tap the chip or palm-swipe to restore.
+9. Say “Jarvis, status” then “open holocomm” or tap **THE SAGE**. Heard text appears. A blue cone projects a CC0 Kenney humanoid in hologram material. It idles, then talks while a stylized original line is spoken (TTS). Repeat for masked lord / hooded emperor / young knight. Not film likenesses, not movie audio.
 10. Use the Quest browser exit / **End AR** control. You return to the 2D visor page. **Engage Helmet** works again.
 
 ### Expected gaps
 
 - House/Alexa is not in this slice. Toggles flip locally and show **ACTUATED**.
-- Hand meshes are fingertip markers + a beam, not full skinned hands.
-- Cloud AI stays off. No API keys. Jarvis is Web Speech, not a model.
-- Holocomm figures are original silhouettes, not film likenesses.
+- Hand meshes are fingertip markers, not full skinned hands.
+- Cloud AI stays off. No API keys. Jarvis and holocomm voices are Web Speech, not a model.
+- Holocomm figures are Kenney Mini Characters (CC0) plus original accessories/lines. Not Disney / Lucasfilm likenesses.
 
 

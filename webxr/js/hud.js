@@ -359,8 +359,8 @@ export function createHud() {
   const brief = makeBlock(
     [
       "REACH A PANEL  ·  IT COMES TO YOUR HAND",
-      "HOVER A ROW  ·  TAP / POKE TO ACTUATE",
-      "PINCH BEAM IS BACKUP  ·  GRAB BAR · PALM SWIPE",
+      "HOVER A ROW  ·  TAP TO ACTUATE",
+      "GRAB BAR TO SLIDE  ·  PALM SWIPE RECALLS",
     ],
     1180,
     360,
@@ -439,52 +439,77 @@ export function createHud() {
   const magnetize = (tips, cameraWorld, dt) => {
     const center = new THREE.Vector3();
     const meet = new THREE.Vector3();
-    const toCam = new THREE.Vector3();
+    const fromCam = new THREE.Vector3();
     const restWorld = new THREE.Vector3();
     const unit = new THREE.Vector3(1, 1, 1);
+    const ATTRACT = 0.82;
+    const HOLD = 0.05;
 
-    const pull = (node, rest, range = 0.4) => {
+    const pull = (node, rest, range = ATTRACT) => {
       if (node.userData.grabbed || node.userData.returning) {
+        node.userData.docked = false;
         return false;
       }
       node.updateMatrixWorld(true);
       node.getWorldPosition(center);
+      if (node.parent) {
+        node.parent.localToWorld(restWorld.copy(rest));
+      } else {
+        restWorld.copy(rest);
+      }
       let nearest = null;
       let dist = range;
       tips.forEach((tip) => {
-        const d = tip.distanceTo(center);
+        const d = Math.min(tip.distanceTo(center), tip.distanceTo(restWorld));
         if (d < dist) {
           dist = d;
           nearest = tip;
         }
       });
       if (!nearest || !node.parent) {
+        node.userData.docked = false;
+        node.userData.magnet = false;
         node.position.lerp(rest, 1 - Math.exp(-5 * dt));
         node.scale.lerp(unit, 1 - Math.exp(-5 * dt));
         return false;
       }
-      toCam.copy(cameraWorld).sub(nearest);
-      meet.copy(nearest);
-      if (toCam.lengthSq() > 1e-6) {
-        meet.addScaledVector(toCam.normalize(), 0.09);
-      }
-      node.parent.worldToLocal(meet);
-      node.position.lerp(meet, 1 - Math.exp(-7 * dt));
       node.parent.localToWorld(restWorld.copy(rest));
       const homeDist = Math.max(0.22, restWorld.distanceTo(cameraWorld));
-      node.getWorldPosition(center);
-      const nowDist = Math.max(0.14, center.distanceTo(cameraWorld));
-      node.scale.setScalar(Math.min(1, Math.max(0.55, nowDist / homeDist)));
+      const applyScale = () => {
+        node.getWorldPosition(center);
+        const nowDist = Math.max(0.12, center.distanceTo(cameraWorld));
+        node.scale.setScalar(Math.min(1, Math.max(0.5, nowDist / homeDist)));
+      };
+      if (node.userData.holdForTap || node.userData.docked) {
+        applyScale();
+        node.userData.magnet = true;
+        return true;
+      }
+      fromCam.copy(nearest).sub(cameraWorld);
+      if (fromCam.lengthSq() < 1e-8) {
+        fromCam.set(0, 0, -1);
+      } else {
+        fromCam.normalize();
+      }
+      meet.copy(nearest).addScaledVector(fromCam, HOLD);
+      const arrive = nearest.distanceTo(center);
+      node.parent.worldToLocal(meet);
+      node.position.lerp(meet, 1 - Math.exp(-8 * dt));
+      applyScale();
+      if (arrive < 0.12) {
+        node.userData.docked = true;
+      }
+      node.userData.magnet = true;
       return true;
     };
 
     chip.userData.magnet = false;
     if (wantCompact > 0.5) {
-      chip.userData.magnet = pull(chip, new THREE.Vector3(0, 0.02, 0.03), 0.45);
+      chip.userData.magnet = pull(chip, new THREE.Vector3(0, 0.02, 0.03), 0.5);
       return;
     }
     windows.forEach((win) => {
-      pull(win, win.userData.rest, 0.42);
+      pull(win, win.userData.rest, ATTRACT);
     });
   };
 
