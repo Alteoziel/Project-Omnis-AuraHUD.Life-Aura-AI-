@@ -11,9 +11,11 @@ Mixed-reality Iron Man HUD for **Meta Quest 3 Browser**. This folder is the Ques
 - Voice orb pulses from microphone RMS
 - Desktop fallback is a cinematic preview (click toggles; no passthrough)
 
+Live HTTPS: https://tony-stark-hud-theta.vercel.app/
+
 ## Quest 3
 
-1. Open the HTTPS deploy URL in the **Meta Quest Browser** (not App Lab).
+1. Open https://tony-stark-hud-theta.vercel.app/ in the **Meta Quest Browser** (not App Lab).
 2. Allow camera / microphone if asked.
 3. Tap **Engage Helmet**.
 4. The room stays visible through passthrough. The visor locks about a meter in front of you.

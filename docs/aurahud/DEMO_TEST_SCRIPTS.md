@@ -93,7 +93,7 @@ URL: `/money`.
 
 ## WebXR — Iron Man visor (Quest 3)
 
-URL: the HTTPS deploy of `webxr/` (Vercel). Devices: **Meta Quest 3 Browser** first, desktop Chromium only for the cinematic preview.
+URL: https://tony-stark-hud-theta.vercel.app/ (Vercel project `tony-stark-hud`, root `webxr/`). Devices: **Meta Quest 3 Browser** first, desktop Chromium only for the cinematic preview.
 
 ### Desktop preview (optional)
 
