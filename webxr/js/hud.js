@@ -71,6 +71,36 @@ function writeLabel(mesh, text, color = "#9ff7ff") {
   texture.needsUpdate = true;
 }
 
+function makeBlock(lines, width = 1024, height = 320, size = 36) {
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext("2d");
+  ctx.clearRect(0, 0, width, height);
+  ctx.textAlign = "left";
+  ctx.textBaseline = "middle";
+  ctx.shadowColor = "#3df0ff";
+  ctx.shadowBlur = 14;
+  const step = height / (lines.length + 1);
+  lines.forEach((line, index) => {
+    ctx.fillStyle = index === 0 ? "#e9fbff" : "#8ad7e4";
+    ctx.font = `${index === 0 ? 700 : 600} ${index === 0 ? size + 4 : size}px Rajdhani, Segoe UI, sans-serif`;
+    ctx.fillText(line, 36, step * (index + 1));
+  });
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  const mesh = new THREE.Mesh(
+    new THREE.PlaneGeometry(width / 1450, height / 1450),
+    new THREE.MeshBasicMaterial({
+      map: texture,
+      transparent: true,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+    }),
+  );
+  return mesh;
+}
+
 function circleLine(radius, segments = 96) {
   const pts = [];
   for (let i = 0; i <= segments; i += 1) {
@@ -178,11 +208,11 @@ export function createHud() {
   ring.add(outer, mid, ticks, inner, hex, coreGlow, core, halo, scan, cross, orbit, title, status);
 
   const panel = new THREE.Group();
-  panel.position.set(0.42, -0.02, 0.02);
+  panel.position.set(0.46, -0.02, 0.02);
   root.add(panel);
 
   const plate = new THREE.Mesh(
-    new THREE.PlaneGeometry(0.34, 0.27),
+    new THREE.PlaneGeometry(0.42, 0.36),
     new THREE.MeshBasicMaterial({
       color: 0x07141c,
       transparent: true,
@@ -190,20 +220,20 @@ export function createHud() {
       depthWrite: false,
     }),
   );
-  const plateGlow = new THREE.Mesh(new THREE.PlaneGeometry(0.352, 0.282), addMat(CYAN, 0.07));
-  const frame = bracket(0.34, 0.27);
+  const plateGlow = new THREE.Mesh(new THREE.PlaneGeometry(0.434, 0.374), addMat(CYAN, 0.07));
+  const frame = bracket(0.42, 0.36);
   const frameL = new THREE.Line(frame.left, lineMat(CYAN, 0.95));
   const frameR = new THREE.Line(frame.right, lineMat(CYAN, 0.95));
   const panelTitle = makeLabel("HOUSE SYSTEMS", 640, 80, 36);
-  panelTitle.position.set(0, 0.1, 0.002);
+  panelTitle.position.set(0, 0.14, 0.002);
   panel.add(plateGlow, plate, frameL, frameR, panelTitle);
 
   const buttons = [];
   ACTIONS.forEach((action, index) => {
     const row = new THREE.Group();
-    row.position.set(0, 0.03 - index * 0.068, 0.004);
+    row.position.set(0, 0.04 - index * 0.09, 0.004);
     const hit = new THREE.Mesh(
-      new THREE.PlaneGeometry(0.3, 0.056),
+      new THREE.PlaneGeometry(0.38, 0.078),
       new THREE.MeshBasicMaterial({
         color: 0x0a2430,
         transparent: true,
@@ -213,18 +243,18 @@ export function createHud() {
     );
     const edge = new THREE.LineLoop(
       new THREE.BufferGeometry().setFromPoints([
-        new THREE.Vector3(-0.15, 0.028, 0),
-        new THREE.Vector3(0.15, 0.028, 0),
-        new THREE.Vector3(0.15, -0.028, 0),
-        new THREE.Vector3(-0.15, -0.028, 0),
-        new THREE.Vector3(-0.15, 0.028, 0),
+        new THREE.Vector3(-0.19, 0.039, 0),
+        new THREE.Vector3(0.19, 0.039, 0),
+        new THREE.Vector3(0.19, -0.039, 0),
+        new THREE.Vector3(-0.19, -0.039, 0),
+        new THREE.Vector3(-0.19, 0.039, 0),
       ]),
       lineMat(CYAN, 0.45),
     );
     const label = makeLabel(action.label, 640, 88, 34);
     label.position.set(-0.02, 0, 0.001);
-    const pip = new THREE.Mesh(new THREE.CircleGeometry(0.01, 16), addMat(CYAN, 0.25));
-    pip.position.set(0.122, 0, 0.002);
+    const pip = new THREE.Mesh(new THREE.CircleGeometry(0.012, 16), addMat(CYAN, 0.25));
+    pip.position.set(0.15, 0, 0.002);
     row.add(hit, edge, label, pip);
     row.userData = {
       action: action.id,
@@ -249,9 +279,17 @@ export function createHud() {
   orbGroup.add(orbShell, orbCore, orbRing, orbLabel);
   root.add(orbGroup);
 
-  const receipt = makeLabel("BRIDGE STANDBY", 720, 80, 32, "#8ad7e4");
-  receipt.position.set(0.42, -0.175, 0.03);
+  const receipt = makeLabel("LOCAL  ·  ALEXA PENDING", 720, 80, 32, "#8ad7e4");
+  receipt.position.set(0.46, -0.23, 0.03);
   root.add(receipt);
+
+  const brief = makeBlock([
+    "POINT THE BEAM  ·  PINCH TO ACTUATE",
+    "THUMB + INDEX  ·  RAY HITS THE TOGGLE",
+    "RING LOCKS TO HELMET  ·  SPEAK → VOICE ORB",
+  ]);
+  brief.position.set(0, -0.52, 0.02);
+  root.add(brief);
 
   let scanSweep = 0;
   let boot = 0;
@@ -265,12 +303,14 @@ export function createHud() {
       row.userData.hover = hover;
     }
     const active = row.userData.on;
-    const lit = active || row.userData.hover;
-    row.userData.hit.material.opacity = lit ? 0.82 : 0.5;
-    row.userData.hit.material.color.setHex(active ? 0x125066 : 0x0a2430);
+    const pulsing = row.userData.flashUntil && performance.now() < row.userData.flashUntil;
+    const lit = active || row.userData.hover || pulsing;
+    row.userData.hit.material.opacity = pulsing ? 1 : lit ? 0.88 : 0.5;
+    row.userData.hit.material.color.setHex(pulsing ? 0x3df0ff : active ? 0x125066 : row.userData.hover ? 0x163848 : 0x0a2430);
     row.userData.edge.material.opacity = lit ? 1 : 0.4;
-    row.userData.pip.material.opacity = active ? 0.95 : 0.22;
-    row.userData.pip.material.color.setHex(active ? 0x5cff9d : CYAN);
+    row.userData.pip.material.opacity = active || pulsing ? 0.95 : 0.22;
+    row.userData.pip.material.color.setHex(active || pulsing ? 0x5cff9d : CYAN);
+    row.scale.setScalar(row.userData.hover || pulsing ? 1.06 : 1);
   };
 
   const flashReceipt = (text, ok = true) => {
@@ -281,6 +321,10 @@ export function createHud() {
     root,
     buttons,
     setButtonState,
+    pulseButton(row) {
+      row.userData.flashUntil = performance.now() + 180;
+      setButtonState(row, {});
+    },
     flashReceipt,
     triggerScan() {
       scanSweep = 1;

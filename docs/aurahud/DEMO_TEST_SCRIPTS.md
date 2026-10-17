@@ -98,7 +98,7 @@ URL: https://tony-stark-hud-theta.vercel.app/ (Vercel project `tony-stark-hud`, 
 ### Desktop preview (optional)
 
 1. Open the HTTPS URL on a computer. The page is near-black with a glowing cyan HUD ring, a HOUSE SYSTEMS panel, and a voice orb. It should feel like a visor, not a tutorial cube.
-2. Click **Desk Light**. The row lights and the receipt reads `QUEUED desk_light` unless something is listening on `ws://localhost:8000`.
+2. Click **Desk Light**. The row lights, flashes, and the receipt reads `ACTUATED desk_light`. House link is still local.
 3. Click **Open Audio**, allow the mic, and speak. The orb swells and the chrome says **VOICE LIVE**.
 
 ### Quest 3 — put the helmet on
@@ -107,14 +107,15 @@ URL: https://tony-stark-hud-theta.vercel.app/ (Vercel project `tony-stark-hud`, 
 2. Go to the HTTPS URL. Do not use a `http://` LAN address.
 3. Tap **Engage Helmet**. Allow camera / microphone if the browser asks.
 4. Passthrough stays on — you still see the real room. A cyan holographic ring locks in front of your face and slowly rotates.
-5. Look at **HOUSE SYSTEMS**. Pinch thumb to index on **Desk Light**, then **Ceiling Light**. Each toggle lights. If a bridge is running at `ws://localhost:8000`, it gets `{"action":"desk_light",...}` / `{"action":"ceiling_light",...}`.
-6. Pinch **Scan Room**. The ring flashes a scan sweep. Socket payload action is `scan_room`.
-7. Speak while the visor is up. The left orb pulses with your voice.
-8. Use the Quest browser exit / **End AR** control. You return to the 2D visor page. **Engage Helmet** works again.
+5. A cyan beam should come off your hand. Point it at **HOUSE SYSTEMS** — the row brightens and a cursor sits on it. You do not walk up and poke the panel.
+6. Pinch thumb to index (or squeeze) on **Desk Light**, then **Ceiling Light**. Each row flashes and says `ACTUATED`. Lights stay local.
+7. Pinch **Scan Room**. The ring flashes a scan sweep.
+8. The plaque under the ring stays visible: point + pinch, helmet lock, voice orb. Speak — the left orb pulses.
+9. Use the Quest browser exit / **End AR** control. You return to the 2D visor page. **Engage Helmet** works again.
 
 ### Expected gaps
 
-- The home bridge is not in this slice. Without `ws://localhost:8000`, toggles still flip locally and show **QUEUED**.
+- House/Alexa is not in this slice. Toggles flip locally and show **ACTUATED**.
 - Hand meshes are fingertip markers, not full skinned hands.
 - Cloud AI stays off. No API keys.
 

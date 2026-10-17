@@ -140,11 +140,9 @@ function fireAction(row) {
       hud.setButtonState(row, { on: false });
     }, 1200);
   }
-  const result = bridge.send(row.userData.action, { on: next });
-  hud.flashReceipt(
-    result.ok ? `SENT  ${row.userData.action}` : `QUEUED  ${row.userData.action}`,
-    result.ok,
-  );
+  hud.pulseButton(row);
+  bridge.send(row.userData.action, { on: next });
+  hud.flashReceipt(`ACTUATED  ${row.userData.action}`, true);
 }
 
 function hoverFromPointer(clientX, clientY) {
@@ -242,7 +240,7 @@ async function initXrButton() {
     return;
   }
   enterBtn.disabled = false;
-  hint.textContent = "Quest 3: tap Engage Helmet. Passthrough stays on. Pinch a house toggle.";
+  hint.textContent = "Quest 3: Engage Helmet. Point the beam at a toggle, then pinch.";}
 }
 
 function tick() {
