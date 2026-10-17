@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#02060a" />
+    <meta name="description" content="Iron Man mixed-reality HUD for Meta Quest 3 — WebXR passthrough visor." />
+    <title>STARK OS — Visor</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./css/visor.css" />
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+          "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+        }
+      }
+    </script>
+  </head>
+  <body>
+    <canvas id="stage"></canvas>
+    <div id="overlay">
+      <div class="vignette" aria-hidden="true"></div>
+      <div class="hex-frame" aria-hidden="true"></div>
+      <header class="chrome chrome-top">
+        <span><strong>STARK OS</strong> · MARK 85</span>
+        <span id="clock">00:00:00Z</span>
+        <span id="link-status" data-state="down">BRIDGE OFFLINE</span>
+      </header>
+      <div id="boot">
+        <p class="mark">TONY STARK · FIRST SHIP</p>
+        <h1>Lower the visor</h1>
+        <p id="boot-line">INITIALIZING HUD…</p>
+      </div>
+      <p id="hint">Pinch thumb + index to move a window. Hands-in homes the dock. Hover or tap to actuate.</p>
+      <div class="actions">
+        <button id="enter-ar" type="button">Engage Helmet</button>
+        <button id="enable-voice" type="button">Open Audio</button>
+      </div>
+      <footer class="chrome chrome-bottom">
+        <span id="voice-status">VOICE STANDBY</span>
+        <span>SUIT · TAP · BLAST</span>
+        <span>WS localhost:8000</span>
+      </footer>
+    </div>
+    <script type="module" src="./js/main.js"></script>
+  </body>
+</html>

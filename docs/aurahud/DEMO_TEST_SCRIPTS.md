@@ -89,4 +89,42 @@ URL: `/money`.
 4. Micro-sacrifice sentence is checkable: 2 × $22 / week toward $800.
 5. Reload: spends, impulses, and rate persist.
 
+---
+
+## WebXR — Iron Man visor (Quest 3)
+
+URL: https://tony-stark-hud-theta.vercel.app/ (Vercel project `tony-stark-hud`, root `webxr/`). Devices: **Meta Quest 3 Browser** first, desktop Chromium only for the cinematic preview.
+
+### Desktop preview (optional)
+
+1. Open the HTTPS URL on a computer. The page is near-black with a glowing cyan HUD ring, a HOUSE SYSTEMS panel, and a voice orb. It should feel like a visor, not a tutorial cube.
+2. Click **Desk Light**. The row lights, flashes, and the receipt reads `ACTUATED desk_light`. House link is still local.
+3. Click **Open Audio**, allow the mic, and speak. The orb swells and the chrome says **VOICE LIVE**.
+
+### Quest 3 — put the helmet on
+
+1. On the headset, open **Meta Quest Browser** (the system browser).
+2. Go to the HTTPS URL. Do not use a `http://` LAN address.
+3. Tap **Engage Helmet**. Allow camera / microphone if the browser asks.
+4. Passthrough stays on — you still see the real room. A cyan holographic ring locks in front of your face and slowly rotates. HOUSE SYSTEMS is on the right, HOLOCOMM on the left.
+5. HOUSE SYSTEMS stays on the HUD dock. It must **not** slide toward your palm or orbit the hand. Hover **Desk Light** with your index fingertip — the row brightens. Tap / poke the row. It flashes `ACTUATED`. Lights stay local. There is no laser / pinch-beam.
+6. Repeat for **Ceiling Light**. Same hover → tap on the docked pose. Bring hands in toward your body — windows ease **back to the HUD dock and stay**. They must not snap to the hands or oscillate. Hover / two-finger tap must **not** grab the window.
+7. **Pinch thumb + index** near HOUSE SYSTEMS and drag it aside. Only that pinch follows the hand. Release the pinch — it stays until you bring hands back in, then it homes to the dock. A palm or fist must not attach. Open-hand **palm swipe** also snaps windows home. There is only one HOUSE SYSTEMS and one HOLOCOMM.
+8. The gold **TAP STOW** chip sits **near the helmet** (upper-right, about half a meter — not out with the 0.9 m windows). A short reach should tap it. Tap it (or say “minimize”). The HUD collapses to a **STARK OS** chip that stays near-field. Tap the chip, palm-swipe, or say “restore”.
+9. Watch the house. After Engage, the receipt should read `ROOM MESH  N WALLS` and cyan chunks should sit on **your real walls** (Quest Space Setup + allow spatial data). If the browser has no mesh / you deny permission, after ~4s it reads `ROOM FALLBACK  NO MESH` and uses the generic box.
+10. Say “Jarvis, send the suit” (or tap **NANO SUIT**). Speak across a short breath — the HEARD line should keep the words and **not** fire until you stay quiet ~2 seconds. Then cyan/gold plates build onto hands, then arms, then the body in about two seconds. Not a Marvel mesh.
+11. With the suit on, hold one hand **palm out, facing away**, and keep it still. Light + original charge tone for ~2s, then a blast. Chunks on the **real wall** (or fallback box) should break and fall.
+12. Say “take the suit off.” Armor peels. You are visor + passthrough again.
+13. Say “Jarvis, status” then “open holocomm” or tap **THE SAGE**. Heard text appears, then the command fires only after the long pause. A blue cone projects a CC0 Kenney humanoid in hologram material. It idles, then talks while a stylized original line is spoken (TTS). Repeat for masked lord / hooded emperor / young knight. Not film likenesses, not movie audio.
+14. Use the Quest browser exit / **End AR** control. You return to the 2D visor page. **Engage Helmet** works again.
+
+### Expected gaps
+
+- House/Alexa is not in this slice. Toggles flip locally and show **ACTUATED**.
+- Hand meshes are fingertip markers plus nano plates, not full skinned hands.
+- Cloud AI stays off. No API keys. Jarvis and holocomm voices are Web Speech, not a model.
+- Holocomm figures are Kenney Mini Characters (CC0) plus original accessories/lines. Not Disney / Lucasfilm likenesses.
+- No first-encounter / shoot-walls scene exists in this AuraHUD repo (current tree or `19e71e7`). Chunks are original. They map onto WebXR plane/mesh detection when Quest Space Setup + spatial permission are available; otherwise a generic box after ~4s.
+- Web Speech still needs a mic permission and a browser engine that implements SpeechRecognition. Silence commit is ~2.2s on purpose so a breath does not end the line.
+
 

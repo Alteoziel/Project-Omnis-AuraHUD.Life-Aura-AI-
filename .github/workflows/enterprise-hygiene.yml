@@ -29,14 +29,48 @@ jobs:
 
       - name: Detect product packages
         id: js
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+          HEAD_SHA: ${{ github.sha }}
         run: |
           set -euo pipefail
-          echo "web=$([ -f web/package-lock.json ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
-          echo "dashboard=$([ -f dashboard/package-lock.json ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
-          if [ -f web/package-lock.json ] || [ -f dashboard/package-lock.json ]; then
+          web_exists=false
+          dashboard_exists=false
+          [ -f web/package-lock.json ] && web_exists=true
+          [ -f dashboard/package-lock.json ] && dashboard_exists=true
+          echo "web=${web_exists}" >> "$GITHUB_OUTPUT"
+          echo "dashboard=${dashboard_exists}" >> "$GITHUB_OUTPUT"
+          if [ "$web_exists" = true ] || [ "$dashboard_exists" = true ]; then
             echo "any=true" >> "$GITHUB_OUTPUT"
           else
             echo "any=false" >> "$GITHUB_OUTPUT"
+          fi
+
+          # npm audit stays --audit-level=high. It runs when that tree's
+          # lockfile/manifest changed (or on workflow_dispatch). Unrelated
+          # slices should not fail on pre-existing advisories in another app.
+          lockfile_changed() {
+            local dir="$1"
+            if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+              return 0
+            fi
+            if [ -z "${BASE_SHA:-}" ] || [ "$BASE_SHA" = "0000000000000000000000000000000000000000" ]; then
+              return 0
+            fi
+            git diff --name-only "$BASE_SHA" "$HEAD_SHA" -- \
+              "${dir}/package.json" "${dir}/package-lock.json" | grep -q .
+          }
+
+          if [ "$dashboard_exists" = true ] && lockfile_changed dashboard; then
+            echo "audit_dashboard=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "audit_dashboard=false" >> "$GITHUB_OUTPUT"
+          fi
+          if [ "$web_exists" = true ] && lockfile_changed web; then
+            echo "audit_web=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "audit_web=false" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Set up Python
@@ -80,19 +114,25 @@ jobs:
           pip install -e ".[dev]"
           python -m pip_audit --progress-spinner off
 
-      - name: "B · npm audit (dashboard)"
+      - name: "B · npm ci (dashboard)"
         if: steps.js.outputs.dashboard == 'true'
         working-directory: dashboard
-        run: |
-          npm ci
-          npm audit --audit-level=high
+        run: npm ci
 
-      - name: "B · npm audit (web)"
+      - name: "B · npm audit (dashboard)"
+        if: steps.js.outputs.audit_dashboard == 'true'
+        working-directory: dashboard
+        run: npm audit --audit-level=high
+
+      - name: "B · npm ci (web)"
         if: steps.js.outputs.web == 'true'
         working-directory: web
-        run: |
-          npm ci
-          npm audit --audit-level=high
+        run: npm ci
+
+      - name: "B · npm audit (web)"
+        if: steps.js.outputs.audit_web == 'true'
+        working-directory: web
+        run: npm audit --audit-level=high
 
       # ── Layer C: lint + SAST ────────────────────────────────────────
       - name: "C · ESLint (dashboard)"
