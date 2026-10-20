@@ -62,14 +62,17 @@ namespace QuestJarvis
             _room = gameObject.AddComponent<JarvisRoom>();
             _room.Bind(_body, _speaker);
             _voice.Heard += OnHeard;
+            // JarvisRoom places him ~1.5m in front of the XR camera within a few seconds
+            // (works without MRUK / Space Setup). Initial StandAt here is only a cold start.
             var cam = Camera.main;
             var forward = cam != null ? cam.transform.forward : Vector3.forward;
             forward.y = 0f;
             if (forward.sqrMagnitude < 0.01f)
                 forward = Vector3.forward;
-            var spot = (cam != null ? cam.transform.position : Vector3.zero) + forward.normalized * 1.5f;
-            spot.y = 0f;
-            _body.StandAt(spot, cam != null ? cam.transform.position : Vector3.zero);
+            var origin = cam != null ? cam.transform.position : Vector3.up * 1.55f;
+            var spot = origin + forward.normalized * 1.5f;
+            spot.y = cam != null ? Mathf.Abs(cam.transform.position.y - 1.55f) < 0.5f ? 0f : cam.transform.position.y - 1.55f : 0f;
+            _body.StandAt(spot, origin);
             StartCoroutine(Boot());
         }
 

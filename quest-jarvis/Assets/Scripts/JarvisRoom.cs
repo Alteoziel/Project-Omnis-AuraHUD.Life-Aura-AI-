@@ -10,10 +10,16 @@ namespace QuestJarvis
     {
         public const string UnscannedLine = "This room isn't scanned. Run Space Setup, then come back. I'll stand in front of you.";
 
+        const float FallbackDistance = 1.5f;
+        const float FallbackEyeHeight = 1.55f;
+        const float FallbackPlaceDeadline = 2.5f;
+        const float SceneTimeout = 20f;
+
         HologramBody _body;
         JarvisSpeaker _speaker;
         bool _sceneReady;
         bool _saidUnscanned;
+        bool _fallbackPlaced;
         bool _sitting;
         float _nextMoveAt;
         MRUKRoom _room;
@@ -27,7 +33,46 @@ namespace QuestJarvis
 
         void Start()
         {
+            StartCoroutine(AlwaysInFrontUntilRoom());
             StartCoroutine(WaitForScene());
+        }
+
+        /// <summary>
+        /// Cyan hologram must appear ~1.5m in front of the XR camera within a few seconds
+        /// even when MRUK / Space Setup is missing. Room furniture takes over once the scan loads.
+        /// </summary>
+        IEnumerator AlwaysInFrontUntilRoom()
+        {
+            float t = 0f;
+            while (!_sceneReady && t < FallbackPlaceDeadline)
+            {
+                if (TryPlaceInFrontOfCamera(force: false))
+                    break;
+                t += Time.deltaTime;
+                yield return null;
+            }
+            if (!_sceneReady && !_fallbackPlaced)
+                TryPlaceInFrontOfCamera(force: true);
+
+            while (!_sceneReady)
+            {
+                // Re-anchor only if he drifted far (user walked away); avoid teleport jitter.
+                if (!_body.Busy && NeedsFallbackReanchor())
+                    TryPlaceInFrontOfCamera(force: true);
+                yield return new WaitForSeconds(0.75f);
+            }
+        }
+
+        bool NeedsFallbackReanchor()
+        {
+            if (_body == null || !_fallbackPlaced)
+                return true;
+            var cam = FindXrCamera();
+            if (cam == null)
+                return false;
+            var flat = _body.transform.position - cam.transform.position;
+            flat.y = 0f;
+            return flat.magnitude > 3.5f || flat.magnitude < 0.4f;
         }
 
         IEnumerator WaitForScene()
@@ -38,14 +83,34 @@ namespace QuestJarvis
                 t += Time.deltaTime;
                 yield return null;
             }
+
             if (MRUK.Instance == null)
             {
-                ShowUnscanned();
+                // Keep watching — MRUK can appear after the initial window.
+                float linger = 0f;
+                while (MRUK.Instance == null && linger < SceneTimeout)
+                {
+                    linger += Time.deltaTime;
+                    yield return null;
+                }
+                if (MRUK.Instance == null)
+                {
+                    ShowUnscanned();
+                    yield break;
+                }
+            }
+
+            MRUK.Instance.RegisterSceneLoadedCallback(OnSceneLoaded);
+            // Scene may already be loaded before we registered.
+            var existing = MRUK.Instance.GetCurrentRoom();
+            if (existing != null && existing.Anchors != null && existing.Anchors.Count > 0)
+            {
+                OnSceneLoaded();
                 yield break;
             }
-            MRUK.Instance.RegisterSceneLoadedCallback(OnSceneLoaded);
+
             float wait = 0f;
-            while (!_sceneReady && wait < 20f)
+            while (!_sceneReady && wait < SceneTimeout)
             {
                 wait += Time.deltaTime;
                 yield return null;
@@ -67,27 +132,85 @@ namespace QuestJarvis
             _body.StandAt(stand, CameraPoint());
             _nextMoveAt = Time.time + 8f;
             StickSavedReminders();
+            Debug.Log("[Jarvis] room scan ready — moved off camera fallback");
         }
 
         void ShowUnscanned()
         {
+            TryPlaceInFrontOfCamera(force: true);
             if (_saidUnscanned)
                 return;
             _saidUnscanned = true;
-            _sceneReady = false;
-            var cam = Camera.main;
-            var origin = cam != null ? cam.transform.position : Vector3.zero;
-            var forward = cam != null ? cam.transform.forward : Vector3.forward;
+            if (_speaker != null)
+                _speaker.Say(UnscannedLine);
+            Debug.Log("[Jarvis] " + UnscannedLine);
+        }
+
+        bool TryPlaceInFrontOfCamera(bool force)
+        {
+            if (_body == null)
+                return false;
+            var cam = FindXrCamera();
+            if (cam == null && !force)
+                return false;
+
+            Vector3 origin;
+            Vector3 forward;
+            float floorY;
+            if (cam != null)
+            {
+                origin = cam.transform.position;
+                forward = cam.transform.forward;
+                floorY = FloorYFromCamera(cam);
+            }
+            else
+            {
+                origin = Vector3.up * FallbackEyeHeight;
+                forward = Vector3.forward;
+                floorY = 0f;
+            }
+
             forward.y = 0f;
             if (forward.sqrMagnitude < 0.01f)
                 forward = Vector3.forward;
             forward.Normalize();
-            var floor = origin + forward * 1.5f;
-            floor.y = 0f;
+
+            var floor = origin + forward * FallbackDistance;
+            floor.y = floorY;
             _body.StandAt(floor, origin);
-            if (_speaker != null)
-                _speaker.Say(UnscannedLine);
-            Debug.Log("[Jarvis] " + UnscannedLine);
+            _fallbackPlaced = true;
+            return true;
+        }
+
+        static float FloorYFromCamera(Camera cam)
+        {
+            // Floor-level tracking: feet near y=0. Otherwise estimate from eye height.
+            var y = cam.transform.position.y - FallbackEyeHeight;
+            return y > -0.5f && y < 0.5f ? 0f : y;
+        }
+
+        static Camera FindXrCamera()
+        {
+            if (Camera.main != null)
+                return Camera.main;
+            var tagged = GameObject.FindGameObjectWithTag("MainCamera");
+            if (tagged != null)
+            {
+                var c = tagged.GetComponent<Camera>();
+                if (c != null && c.enabled)
+                    return c;
+            }
+            Camera best = null;
+            foreach (var cam in Camera.allCameras)
+            {
+                if (cam == null || !cam.enabled)
+                    continue;
+                if (cam.stereoTargetEye != StereoTargetEyeMask.None)
+                    return cam;
+                if (best == null)
+                    best = cam;
+            }
+            return best;
         }
 
         void Update()
@@ -123,9 +246,9 @@ namespace QuestJarvis
                 _shownReminderIds.Add(reminder.id);
             if (!TryDoorPose(out var pos, out var rot, out var parent))
             {
-                var cam = Camera.main;
-                pos = cam != null ? cam.transform.position + cam.transform.forward * 1.1f : Vector3.forward;
-                rot = cam != null ? Quaternion.LookRotation(cam.transform.forward) : Quaternion.identity;
+                var cam = FindXrCamera();
+                pos = cam != null ? cam.transform.position + FlatForward(cam) * 1.1f : Vector3.forward;
+                rot = cam != null ? Quaternion.LookRotation(FlatForward(cam)) : Quaternion.identity;
                 parent = null;
                 speaker.Say("No door in this scan. I'll keep it, and stick it on the door once Space Setup has one. For now it's in front of you.");
             }
@@ -249,13 +372,9 @@ namespace QuestJarvis
 
         Vector3 FloorInFront()
         {
-            var cam = Camera.main;
+            var cam = FindXrCamera();
             var origin = cam != null ? cam.transform.position : Vector3.zero;
-            var forward = cam != null ? cam.transform.forward : Vector3.forward;
-            forward.y = 0f;
-            if (forward.sqrMagnitude < 0.01f)
-                forward = Vector3.forward;
-            forward.Normalize();
+            var forward = FlatForward(cam);
             var spot = origin + forward * 1.45f;
             spot.y = FloorY();
             return spot;
@@ -265,13 +384,23 @@ namespace QuestJarvis
         {
             if (_room != null && _room.FloorAnchor != null)
                 return _room.FloorAnchor.transform.position.y;
-            return 0f;
+            var cam = FindXrCamera();
+            return cam != null ? FloorYFromCamera(cam) : 0f;
         }
 
         Vector3 CameraPoint()
         {
-            var cam = Camera.main;
+            var cam = FindXrCamera();
             return cam != null ? cam.transform.position : transform.position + transform.forward;
+        }
+
+        static Vector3 FlatForward(Camera cam)
+        {
+            var forward = cam != null ? cam.transform.forward : Vector3.forward;
+            forward.y = 0f;
+            if (forward.sqrMagnitude < 0.01f)
+                forward = Vector3.forward;
+            return forward.normalized;
         }
 
         MRUKAnchor FindLabel(MRUKAnchor.SceneLabels label)
