@@ -11,12 +11,12 @@ namespace QuestJarvis
         public const string UnscannedLine = "This room isn't scanned. Run Space Setup, then come back. I'll stand in front of you.";
 
         const float FallbackDistance = 1.5f;
-        const float FallbackEyeHeight = 1.55f;
         const float FallbackPlaceDeadline = 2.5f;
         const float SceneTimeout = 20f;
 
         HologramBody _body;
         JarvisSpeaker _speaker;
+        JarvisPanels _panels;
         bool _sceneReady;
         bool _saidUnscanned;
         bool _fallbackPlaced;
@@ -25,10 +25,13 @@ namespace QuestJarvis
         MRUKRoom _room;
         readonly List<string> _shownReminderIds = new List<string>();
 
-        public void Bind(HologramBody body, JarvisSpeaker speaker)
+        public bool SceneReady => _sceneReady;
+
+        public void Bind(HologramBody body, JarvisSpeaker speaker, JarvisPanels panels = null)
         {
             _body = body;
             _speaker = speaker;
+            _panels = panels;
         }
 
         void Start()
@@ -39,7 +42,7 @@ namespace QuestJarvis
 
         /// <summary>
         /// Cyan hologram must appear ~1.5m in front of the XR camera within a few seconds
-        /// even when MRUK / Space Setup is missing. Room furniture takes over once the scan loads.
+        /// even when MRUK / Space Setup is missing. Furniture takes over once the scan loads.
         /// </summary>
         IEnumerator AlwaysInFrontUntilRoom()
         {
@@ -47,17 +50,27 @@ namespace QuestJarvis
             while (!_sceneReady && t < FallbackPlaceDeadline)
             {
                 if (TryPlaceInFrontOfCamera(force: false))
+                {
+                    if (_panels != null)
+                        _panels.ShowStatus("Jarvis: hologram in front of you", 4f);
                     break;
+                }
+                if (_panels != null)
+                    _panels.ShowStatus("Jarvis: waiting for XR camera…");
                 t += Time.deltaTime;
                 yield return null;
             }
             if (!_sceneReady && !_fallbackPlaced)
+            {
                 TryPlaceInFrontOfCamera(force: true);
+                if (_panels != null)
+                    _panels.ShowStatus("Jarvis: forced front spawn", 5f);
+                Debug.LogWarning("[Jarvis] forced front spawn after " + FallbackPlaceDeadline + "s");
+            }
 
             while (!_sceneReady)
             {
-                // Re-anchor only if he drifted far (user walked away); avoid teleport jitter.
-                if (!_body.Busy && NeedsFallbackReanchor())
+                if (_body != null && !_body.Busy && NeedsFallbackReanchor())
                     TryPlaceInFrontOfCamera(force: true);
                 yield return new WaitForSeconds(0.75f);
             }
@@ -67,7 +80,7 @@ namespace QuestJarvis
         {
             if (_body == null || !_fallbackPlaced)
                 return true;
-            var cam = FindXrCamera();
+            var cam = JarvisCamera.Find();
             if (cam == null)
                 return false;
             var flat = _body.transform.position - cam.transform.position;
@@ -95,7 +108,7 @@ namespace QuestJarvis
                 }
                 if (MRUK.Instance == null)
                 {
-                    ShowUnscanned();
+                    ShowUnscanned("mruk-null");
                     yield break;
                 }
             }
@@ -116,7 +129,7 @@ namespace QuestJarvis
                 yield return null;
             }
             if (!_sceneReady)
-                ShowUnscanned();
+                ShowUnscanned("scene-timeout");
         }
 
         void OnSceneLoaded()
@@ -124,7 +137,7 @@ namespace QuestJarvis
             _room = MRUK.Instance != null ? MRUK.Instance.GetCurrentRoom() : null;
             if (_room == null || _room.Anchors == null || _room.Anchors.Count == 0)
             {
-                ShowUnscanned();
+                ShowUnscanned("empty-room");
                 return;
             }
             _sceneReady = true;
@@ -132,27 +145,35 @@ namespace QuestJarvis
             _body.StandAt(stand, CameraPoint());
             _nextMoveAt = Time.time + 8f;
             StickSavedReminders();
-            Debug.Log("[Jarvis] room scan ready — moved off camera fallback");
+            Debug.Log("[Jarvis] MRUK room ready anchors=" + _room.Anchors.Count + " stand=" + stand);
+            if (_panels != null)
+                _panels.ShowStatus("Jarvis: room scan loaded", 3f);
         }
 
-        void ShowUnscanned()
+        void ShowUnscanned(string reason)
         {
             TryPlaceInFrontOfCamera(force: true);
             if (_saidUnscanned)
                 return;
             _saidUnscanned = true;
+            _sceneReady = false;
             if (_speaker != null)
                 _speaker.Say(UnscannedLine);
-            Debug.Log("[Jarvis] " + UnscannedLine);
+            Debug.Log("[Jarvis] " + UnscannedLine + " reason=" + reason);
+            if (_panels != null)
+                _panels.ShowStatus("Jarvis: no Space Setup — standing in front", 6f);
         }
 
         bool TryPlaceInFrontOfCamera(bool force)
         {
             if (_body == null)
                 return false;
-            var cam = FindXrCamera();
+            var cam = JarvisCamera.Find();
             if (cam == null && !force)
+            {
+                Debug.LogWarning("[Jarvis] front place blocked — no XR camera");
                 return false;
+            }
 
             Vector3 origin;
             Vector3 forward;
@@ -161,13 +182,14 @@ namespace QuestJarvis
             {
                 origin = cam.transform.position;
                 forward = cam.transform.forward;
-                floorY = FloorYFromCamera(cam);
+                floorY = JarvisCamera.FloorYFromCamera(cam);
             }
             else
             {
-                origin = Vector3.up * FallbackEyeHeight;
+                origin = Vector3.up * 1.55f;
                 forward = Vector3.forward;
                 floorY = 0f;
+                Debug.LogError("[Jarvis] front place forced without camera — using world forward");
             }
 
             forward.y = 0f;
@@ -179,38 +201,8 @@ namespace QuestJarvis
             floor.y = floorY;
             _body.StandAt(floor, origin);
             _fallbackPlaced = true;
-            return true;
-        }
-
-        static float FloorYFromCamera(Camera cam)
-        {
-            // Floor-level tracking: feet near y=0. Otherwise estimate from eye height.
-            var y = cam.transform.position.y - FallbackEyeHeight;
-            return y > -0.5f && y < 0.5f ? 0f : y;
-        }
-
-        static Camera FindXrCamera()
-        {
-            if (Camera.main != null)
-                return Camera.main;
-            var tagged = GameObject.FindGameObjectWithTag("MainCamera");
-            if (tagged != null)
-            {
-                var c = tagged.GetComponent<Camera>();
-                if (c != null && c.enabled)
-                    return c;
-            }
-            Camera best = null;
-            foreach (var cam in Camera.allCameras)
-            {
-                if (cam == null || !cam.enabled)
-                    continue;
-                if (cam.stereoTargetEye != StereoTargetEyeMask.None)
-                    return cam;
-                if (best == null)
-                    best = cam;
-            }
-            return best;
+            Debug.Log("[Jarvis] front place hips≈" + (floor + Vector3.up * 0.96f) + " cam=" + (cam != null ? cam.name : "null"));
+            return cam != null;
         }
 
         void Update()
@@ -246,7 +238,7 @@ namespace QuestJarvis
                 _shownReminderIds.Add(reminder.id);
             if (!TryDoorPose(out var pos, out var rot, out var parent))
             {
-                var cam = FindXrCamera();
+                var cam = JarvisCamera.Find();
                 pos = cam != null ? cam.transform.position + FlatForward(cam) * 1.1f : Vector3.forward;
                 rot = cam != null ? Quaternion.LookRotation(FlatForward(cam)) : Quaternion.identity;
                 parent = null;
@@ -372,25 +364,22 @@ namespace QuestJarvis
 
         Vector3 FloorInFront()
         {
-            var cam = FindXrCamera();
-            var origin = cam != null ? cam.transform.position : Vector3.zero;
-            var forward = FlatForward(cam);
-            var spot = origin + forward * 1.45f;
-            spot.y = FloorY();
-            return spot;
+            if (JarvisCamera.TryFrontFloor(1.45f, FloorY(), true, out var spot, out _))
+                return spot;
+            return new Vector3(0f, FloorY(), 1.45f);
         }
 
         float FloorY()
         {
             if (_room != null && _room.FloorAnchor != null)
                 return _room.FloorAnchor.transform.position.y;
-            var cam = FindXrCamera();
-            return cam != null ? FloorYFromCamera(cam) : 0f;
+            var cam = JarvisCamera.Find();
+            return cam != null ? JarvisCamera.FloorYFromCamera(cam) : 0f;
         }
 
         Vector3 CameraPoint()
         {
-            var cam = FindXrCamera();
+            var cam = JarvisCamera.Find();
             return cam != null ? cam.transform.position : transform.position + transform.forward;
         }
 

@@ -10,7 +10,10 @@ namespace QuestJarvis
         Text _captionText;
         Canvas _search;
         Text _searchText;
+        Canvas _status;
+        Text _statusText;
         float _captionUntil;
+        float _statusUntil;
 
         public void Build(Transform follow)
         {
@@ -22,6 +25,31 @@ namespace QuestJarvis
             _search = MakeCanvas("SearchPanel", follow, new Vector2(760f, 460f), new Vector3(0.55f, 0.05f, 0.05f), 0.0007f);
             _searchText = MakeText(_search.transform, 28, TextAnchor.UpperLeft);
             _search.gameObject.SetActive(false);
+
+            // Camera-locked status so spawn failures are visible even if the body is off-screen.
+            _status = MakeCameraStatus();
+            _statusText = MakeText(_status.transform, 30, TextAnchor.MiddleCenter);
+            _status.gameObject.SetActive(false);
+        }
+
+        Canvas MakeCameraStatus()
+        {
+            var go = new GameObject("SpawnStatus");
+            var canvas = go.AddComponent<Canvas>();
+            canvas.renderMode = RenderMode.WorldSpace;
+            var rect = go.GetComponent<RectTransform>();
+            rect.sizeDelta = new Vector2(820f, 120f);
+            go.transform.localScale = Vector3.one * 0.001f;
+            var bgGo = new GameObject("Plate");
+            bgGo.transform.SetParent(go.transform, false);
+            var bgRect = bgGo.AddComponent<RectTransform>();
+            bgRect.anchorMin = Vector2.zero;
+            bgRect.anchorMax = Vector2.one;
+            bgRect.offsetMin = Vector2.zero;
+            bgRect.offsetMax = Vector2.zero;
+            var image = bgGo.AddComponent<Image>();
+            image.color = new Color(0.01f, 0.08f, 0.12f, 0.55f);
+            return canvas;
         }
 
         static Font LoadFont()
@@ -84,6 +112,16 @@ namespace QuestJarvis
             _captionUntil = Time.time + seconds;
         }
 
+        public void ShowStatus(string text, float seconds = 0f)
+        {
+            if (_status == null || _statusText == null)
+                return;
+            _statusText.text = text;
+            _status.gameObject.SetActive(true);
+            _statusUntil = seconds > 0f ? Time.time + seconds : float.PositiveInfinity;
+            Debug.Log("[Jarvis] status: " + text);
+        }
+
         public void ShowSearch(string query, string answer)
         {
             if (_search == null)
@@ -137,7 +175,7 @@ namespace QuestJarvis
 
         void LateUpdate()
         {
-            var cam = Camera.main;
+            var cam = JarvisCamera.Find();
             if (cam == null)
                 return;
             if (_caption != null && _caption.gameObject.activeSelf)
@@ -148,6 +186,18 @@ namespace QuestJarvis
             }
             if (_search != null && _search.gameObject.activeSelf)
                 _search.transform.rotation = Quaternion.LookRotation(_search.transform.position - cam.transform.position);
+            if (_status != null && _status.gameObject.activeSelf)
+            {
+                var forward = cam.transform.forward;
+                forward.y = 0f;
+                if (forward.sqrMagnitude < 0.01f)
+                    forward = cam.transform.forward;
+                forward.Normalize();
+                _status.transform.position = cam.transform.position + forward * 1.05f + Vector3.up * 0.08f;
+                _status.transform.rotation = Quaternion.LookRotation(_status.transform.position - cam.transform.position);
+                if (Time.time > _statusUntil)
+                    _status.gameObject.SetActive(false);
+            }
         }
     }
 }

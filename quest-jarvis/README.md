@@ -28,4 +28,12 @@ Unity `6000.5.0f1`, Android ARM64, Meta XR Core and MR Utility Kit. From this fo
 .\build-quest-jarvis.ps1
 ```
 
-The signed debug APK is `Builds/QuestJarvis-debug.apk`. The debug keystore and `Signing/keystore.pass` stay on this PC so later updates keep the same signature. Neither is committed.
+Equivalent batch line:
+
+```powershell
+& "C:\Program Files\Unity\Hub\Editor\6000.5.0f1\Editor\Unity.exe" -batchmode -quit -projectPath (Get-Location) -buildTarget Android -executeMethod QuestJarvis.Editor.QuestJarvisBuild.BuildApk -logFile Logs\build.log
+```
+
+The signed debug APK is `Builds/QuestJarvis-debug.apk`. Signing uses `Signing/quest-jarvis-debug.keystore` and `Signing/keystore.pass` on this PC so later updates keep the same signature. Neither is committed. SideQuest: update in place over `com.alteoziel.questjarvis` — do not uninstall.
+
+He always front-spawns ~1.5 m ahead of the XR eye camera within a few seconds, even if Space Setup / MRUK is missing or late. Watch the cyan status plate / logcat `[Jarvis]` lines if spawn is blocked.

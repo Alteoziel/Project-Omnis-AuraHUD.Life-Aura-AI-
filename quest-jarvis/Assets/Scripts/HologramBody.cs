@@ -43,14 +43,12 @@ namespace QuestJarvis
 
         public void Build()
         {
-            var shader = Shader.Find("QuestJarvis/HologramScanline");
-            if (shader == null)
-                shader = Shader.Find("Unlit/Color");
-            _bodyMat = new Material(shader);
-            _bodyMat.SetColor("_Color", new Color(0.35f, 0.95f, 1f, 0.40f));
-            _eyeMat = new Material(shader);
-            _eyeMat.SetColor("_Color", new Color(0.75f, 1f, 1f, 0.85f));
-            _eyeMat.SetFloat("_Brightness", 2.4f);
+            _bodyMat = MakeHoloMat(new Color(0.2f, 0.95f, 1f, 0.88f), 2.8f);
+            _eyeMat = MakeHoloMat(new Color(0.85f, 1f, 1f, 1f), 3.6f);
+            if (_bodyMat == null)
+                Debug.LogError("[Jarvis] hologram body material is null");
+            else
+                Debug.Log("[Jarvis] hologram material shader=" + _bodyMat.shader.name);
 
             _hips = transform;
             Limb(_hips, PrimitiveType.Sphere, new Vector3(0.22f, 0.16f, 0.16f), Vector3.zero, _bodyMat);
@@ -104,6 +102,36 @@ namespace QuestJarvis
             aim.isTrigger = true;
         }
 
+        static Material MakeHoloMat(Color color, float brightness)
+        {
+            var shader = Shader.Find("QuestJarvis/HologramScanline");
+            if (shader == null || !shader.isSupported)
+            {
+                Debug.LogWarning("[Jarvis] HologramScanline missing/unsupported, using Unlit/Color");
+                shader = Shader.Find("Unlit/Color");
+            }
+            if (shader == null)
+                shader = Shader.Find("Sprites/Default");
+            if (shader == null)
+                shader = Shader.Find("UI/Default");
+            if (shader == null)
+            {
+                Debug.LogError("[Jarvis] no unlit shader found — hologram may be invisible");
+                shader = Shader.Find("Standard");
+                if (shader == null)
+                    return null;
+            }
+            var mat = new Material(shader);
+            mat.color = color;
+            if (mat.HasProperty("_Color"))
+                mat.SetColor("_Color", color);
+            if (mat.HasProperty("_Brightness"))
+                mat.SetFloat("_Brightness", brightness);
+            if (mat.HasProperty("_Dissolve"))
+                mat.SetFloat("_Dissolve", 0f);
+            return mat;
+        }
+
         static Transform Joint(string name, Transform parent, Vector3 localPos)
         {
             var t = new GameObject(name).transform;
@@ -125,14 +153,15 @@ namespace QuestJarvis
             go.transform.localRotation = Quaternion.identity;
             go.transform.localScale = scale;
             var renderer = go.GetComponent<Renderer>();
-            renderer.sharedMaterial = mat;
+            if (mat != null)
+                renderer.sharedMaterial = mat;
             renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
             renderer.receiveShadows = false;
         }
 
         public bool IsUserAimedAt()
         {
-            var cam = Camera.main;
+            var cam = JarvisCamera.Find();
             if (cam == null || Head == null)
                 return false;
             var to = Head.position - cam.transform.position;
@@ -244,8 +273,9 @@ namespace QuestJarvis
 
         void Update()
         {
-            if (_talk > 0f && Camera.main != null)
-                Face(Camera.main.transform.position);
+            var cam = JarvisCamera.Find();
+            if (_talk > 0f && cam != null)
+                Face(cam.transform.position);
 
             float time = Time.time;
             float breathe = Mathf.Sin(time * 1.4f);

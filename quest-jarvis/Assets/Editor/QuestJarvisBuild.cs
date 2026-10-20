@@ -252,6 +252,12 @@ namespace QuestJarvis.Editor
                 cam.backgroundColor = new Color(0f, 0f, 0f, 0f);
                 cam.nearClipPlane = 0.05f;
                 cam.farClipPlane = 1000f;
+                // Camera.main must resolve on device — OVRCameraRig defaults to Untagged.
+                if (cam.name.IndexOf("CenterEye", System.StringComparison.OrdinalIgnoreCase) >= 0)
+                {
+                    try { cam.tag = "MainCamera"; }
+                    catch (System.Exception e) { Debug.LogWarning("[Jarvis] MainCamera tag: " + e.Message); }
+                }
             }
 
             var manager = rig.GetComponent("OVRManager") ?? rig.GetComponentInChildren(FindType("OVRManager"));

@@ -2,22 +2,24 @@ Shader "QuestJarvis/HologramScanline"
 {
     Properties
     {
-        _Color ("Color", Color) = (0.35, 0.95, 1, 0.42)
+        _Color ("Color", Color) = (0.2, 0.95, 1, 0.88)
         _ScanFreq ("Scan Frequency", Float) = 26
         _ScanSpeed ("Scan Speed", Float) = 1.15
         _Rim ("Rim", Range(0.5, 8)) = 2.4
         _Dissolve ("Dissolve", Range(0, 1)) = 0
-        _Brightness ("Brightness", Range(0, 4)) = 1.55
+        _Brightness ("Brightness", Range(0, 6)) = 2.8
     }
     SubShader
     {
         Tags { "Queue"="Transparent" "RenderType"="Transparent" "IgnoreProjector"="True" }
         Pass
         {
-            Blend SrcAlpha OneMinusSrcAlpha
+            // Additive-leaning blend so cyan reads in bright passthrough rooms.
+            Blend SrcAlpha One
             ZWrite Off
             Cull Off
             Lighting Off
+            ZTest LEqual
 
             CGPROGRAM
             #pragma vertex vert
@@ -71,12 +73,13 @@ Shader "QuestJarvis/HologramScanline"
                 }
                 if (_Dissolve > 0.98)
                     discard;
-                float alpha = _Color.a * (0.22 + line * 0.9 + fres * 0.85) * keep;
-                float3 col = _Color.rgb * _Brightness * (0.5 + fres * 1.35 + line * 0.8);
+                // Base fill stays visible even without rim/scan contribution.
+                float alpha = _Color.a * (0.55 + line * 0.55 + fres * 0.55) * keep;
+                float3 col = _Color.rgb * _Brightness * (0.75 + fres * 1.1 + line * 0.65);
                 return fixed4(col, saturate(alpha));
             }
             ENDCG
         }
     }
-    FallBack Off
+    FallBack "Unlit/Color"
 }
