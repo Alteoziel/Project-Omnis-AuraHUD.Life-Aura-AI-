@@ -23,6 +23,25 @@ ENV/
 # Governance / dashboard
 governance/.venv/
 htmlcov/
+# Quest Jarvis (Unity). Library and builds stay on this PC.
+quest-jarvis/[Ll]ibrary/
+quest-jarvis/[Tt]emp/
+quest-jarvis/[Oo]bj/
+quest-jarvis/[Bb]uild/
+quest-jarvis/[Bb]uilds/
+quest-jarvis/[Ll]ogs/
+quest-jarvis/[Uu]ser[Ss]ettings/
+quest-jarvis/*.apk
+quest-jarvis/*.aab
+quest-jarvis/**/*.keystore
+quest-jarvis/Signing/keystore.pass
+quest-jarvis/Assets/StreamingAssets/jarvis-local.json
+quest-jarvis/Assets/StreamingAssets/jarvis-local.json.meta
+quest-jarvis/*.csproj
+quest-jarvis/*.sln
+quest-jarvis/.vs/
+quest-jarvis/.gradle/
+
 # IDE
 .idea/
 .mypy_cache/
