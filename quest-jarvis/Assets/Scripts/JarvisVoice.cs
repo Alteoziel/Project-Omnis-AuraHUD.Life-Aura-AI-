@@ -280,7 +280,7 @@ namespace QuestJarvis
                     else if (_speechStart > 0f)
                     {
                         _utterance.AddRange(chunk);
-                        bool ended = Time.time - _lastVoice > 0.75f;
+                        bool ended = Time.time - _lastVoice > 2.0f;
                         bool tooLong = _utterance.Count > _micRate * 8;
                         if (ended || tooLong)
                         {

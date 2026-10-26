@@ -10,9 +10,12 @@ namespace QuestJarvis
     {
         public const string UnscannedLine = "This room isn't scanned. Run Space Setup, then come back. I'll stand in front of you.";
 
-        const float FallbackDistance = 1.5f;
+        const float FallbackDistance = 1.65f;
         const float FallbackPlaceDeadline = 2.5f;
         const float SceneTimeout = 20f;
+        const float FurniturePhaseCooldown = 20f;
+        const float IdleMoveMin = 22f;
+        const float IdleMoveMax = 34f;
 
         HologramBody _body;
         JarvisSpeaker _speaker;
@@ -22,6 +25,7 @@ namespace QuestJarvis
         bool _fallbackPlaced;
         bool _sitting;
         float _nextMoveAt;
+        float _lastFurniturePhaseAt = -999f;
         MRUKRoom _room;
         readonly List<string> _shownReminderIds = new List<string>();
 
@@ -72,7 +76,7 @@ namespace QuestJarvis
             {
                 if (_body != null && !_body.Busy && NeedsFallbackReanchor())
                     TryPlaceInFrontOfCamera(force: true);
-                yield return new WaitForSeconds(0.75f);
+                yield return new WaitForSeconds(1.5f);
             }
         }
 
@@ -85,7 +89,8 @@ namespace QuestJarvis
                 return false;
             var flat = _body.transform.position - cam.transform.position;
             flat.y = 0f;
-            return flat.magnitude > 3.5f || flat.magnitude < 0.4f;
+            // Never yank him closer when you walk up — only if he fell too far away.
+            return flat.magnitude > JarvisCamera.MaxReanchorMeters;
         }
 
         IEnumerator WaitForScene()
@@ -143,7 +148,7 @@ namespace QuestJarvis
             _sceneReady = true;
             var stand = FloorInFront();
             _body.StandAt(stand, CameraPoint());
-            _nextMoveAt = Time.time + 8f;
+            _nextMoveAt = Time.time + 12f;
             StickSavedReminders();
             Debug.Log("[Jarvis] MRUK room ready anchors=" + _room.Anchors.Count + " stand=" + stand);
             if (_panels != null)
@@ -199,6 +204,7 @@ namespace QuestJarvis
 
             var floor = origin + forward * FallbackDistance;
             floor.y = floorY;
+            JarvisCamera.EnforcePersonalSpace(ref floor, floorY, JarvisCamera.MinPersonalMeters);
             _body.StandAt(floor, origin);
             _fallbackPlaced = true;
             Debug.Log("[Jarvis] front place hips≈" + (floor + Vector3.up * 0.96f) + " cam=" + (cam != null ? cam.name : "null"));
@@ -213,42 +219,51 @@ namespace QuestJarvis
                 return;
             if (Time.time < _nextMoveAt)
                 return;
-            _nextMoveAt = Time.time + Random.Range(16f, 26f);
+            _nextMoveAt = Time.time + Random.Range(IdleMoveMin, IdleMoveMax);
             if (_sitting)
             {
                 var stand = FloorInFront();
-                _body.PhaseTo(stand + Vector3.up * 0.96f, CameraPoint(), false);
                 _sitting = false;
+                _body.WalkTo(stand, CameraPoint());
                 return;
             }
-            if (TryFurniture(out var hips, out var look))
+            if (Time.time - _lastFurniturePhaseAt >= FurniturePhaseCooldown && TryFurniture(out var hips, out var look))
             {
-                _body.PhaseTo(hips, look, true);
-                _sitting = true;
-                return;
+                if (!JarvisCamera.IsTooClose(hips, JarvisCamera.MinPersonalMeters))
+                {
+                    _lastFurniturePhaseAt = Time.time;
+                    _body.PhaseTo(hips, look, true);
+                    _sitting = true;
+                    return;
+                }
             }
             if (TryFloorWalk(out var floor))
-                _body.WalkTo(floor, CameraPoint());
+            {
+                var fy = FloorY();
+                JarvisCamera.EnforcePersonalSpace(ref floor, fy, JarvisCamera.MinPersonalMeters);
+                if (!JarvisCamera.IsTooClose(floor + Vector3.up * 0.96f, JarvisCamera.MinPersonalMeters))
+                    _body.WalkTo(floor, CameraPoint());
+            }
         }
 
-        public void RemindAtDoor(string text, JarvisSpeaker speaker, JarvisPanels panels)
+        public void RemindAt(string place, string text, JarvisSpeaker speaker, JarvisPanels panels)
         {
-            var reminder = JarvisMemory.AddReminder("door", text);
+            var reminder = JarvisMemory.AddReminder(place, text);
             if (!string.IsNullOrEmpty(reminder.id))
                 _shownReminderIds.Add(reminder.id);
-            if (!TryDoorPose(out var pos, out var rot, out var parent))
+            if (!TryPlacePose(place, out var pos, out var rot, out var parent))
             {
                 var cam = JarvisCamera.Find();
-                pos = cam != null ? cam.transform.position + FlatForward(cam) * 1.1f : Vector3.forward;
+                pos = cam != null ? cam.transform.position + FlatForward(cam) * JarvisCamera.PreferredStandMeters : Vector3.forward;
                 rot = cam != null ? Quaternion.LookRotation(FlatForward(cam)) : Quaternion.identity;
                 parent = null;
-                speaker.Say("No door in this scan. I'll keep it, and stick it on the door once Space Setup has one. For now it's in front of you.");
+                speaker.Say("No " + place + " in this scan. I'll keep it, and stick it there once Space Setup has one.");
             }
             else
             {
-                speaker.Say("On the door. " + text);
+                speaker.Say("On the " + place + ". " + text);
             }
-            var note = JarvisPanels.DoorNote(parent, pos, rot, text);
+            var note = JarvisPanels.PlaceNote(place, parent, pos, rot, text);
             panels.ShowCaption(text, 6f);
             if (note != null)
                 _shownReminderIds.Add("live");
@@ -258,33 +273,42 @@ namespace QuestJarvis
         {
             foreach (var reminder in JarvisMemory.Data.reminders)
             {
-                if (reminder == null || reminder.place != "door" || string.IsNullOrEmpty(reminder.id))
+                if (reminder == null || string.IsNullOrEmpty(reminder.place) || string.IsNullOrEmpty(reminder.id))
                     continue;
                 if (_shownReminderIds.Contains(reminder.id))
                     continue;
-                if (!TryDoorPose(out var pos, out var rot, out var parent))
+                if (!TryPlacePose(reminder.place, out var pos, out var rot, out var parent))
                     continue;
-                JarvisPanels.DoorNote(parent, pos, rot, reminder.text);
+                JarvisPanels.PlaceNote(reminder.place, parent, pos, rot, reminder.text);
                 _shownReminderIds.Add(reminder.id);
             }
         }
 
-        bool TryDoorPose(out Vector3 pos, out Quaternion rot, out Transform parent)
+        bool TryPlacePose(string place, out Vector3 pos, out Quaternion rot, out Transform parent)
         {
             pos = default;
             rot = Quaternion.identity;
             parent = null;
-            var door = FindLabel(MRUKAnchor.SceneLabels.DOOR_FRAME);
-            if (door == null || _room == null)
+            if (_room == null || string.IsNullOrEmpty(place))
                 return false;
-            var center = door.GetAnchorCenter();
-            var face = _room.GetFacingDirection(door);
+            var key = place.Trim().ToLowerInvariant();
+            MRUKAnchor anchor = null;
+            if (key.Contains("door"))
+                anchor = FindLabel(MRUKAnchor.SceneLabels.DOOR_FRAME);
+            else if (key.Contains("fridge"))
+                anchor = FindLabel(MRUKAnchor.SceneLabels.STORAGE);
+            else if (key.Contains("desk"))
+                anchor = FindLabel(MRUKAnchor.SceneLabels.TABLE);
+            if (anchor == null)
+                return false;
+            var center = anchor.GetAnchorCenter();
+            var face = _room.GetFacingDirection(anchor);
             if (face.sqrMagnitude < 0.001f)
-                face = door.transform.forward;
+                face = anchor.transform.forward;
             pos = center + face.normalized * 0.06f;
-            pos.y = FloorY() + 1.45f;
+            pos.y = FloorY() + (key.Contains("fridge") ? 1.55f : 1.45f);
             rot = Quaternion.LookRotation(-face.normalized, Vector3.up);
-            parent = door.transform;
+            parent = anchor.transform;
             return true;
         }
 
@@ -364,9 +388,15 @@ namespace QuestJarvis
 
         Vector3 FloorInFront()
         {
-            if (JarvisCamera.TryFrontFloor(1.45f, FloorY(), true, out var spot, out _))
+            var fy = FloorY();
+            if (JarvisCamera.TryFrontFloor(JarvisCamera.PreferredStandMeters, fy, true, out var spot, out _))
+            {
+                JarvisCamera.EnforcePersonalSpace(ref spot, fy, JarvisCamera.MinPersonalMeters);
                 return spot;
-            return new Vector3(0f, FloorY(), 1.45f);
+            }
+            var fallback = new Vector3(0f, fy, JarvisCamera.PreferredStandMeters);
+            JarvisCamera.EnforcePersonalSpace(ref fallback, fy, JarvisCamera.MinPersonalMeters);
+            return fallback;
         }
 
         float FloorY()

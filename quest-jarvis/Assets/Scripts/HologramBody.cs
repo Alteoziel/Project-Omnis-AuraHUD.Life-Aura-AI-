@@ -4,8 +4,8 @@ using UnityEngine;
 namespace QuestJarvis
 {
     /// <summary>
-    /// Original hologram person. Mixamo needs an Adobe login, so this is a humanoid rig
-    /// with idle, walk, sit, and talk driven on the bones. Phase and teleport are effects.
+    /// Humanoid hologram (Mixamo or CC0 KayKit) with idle / walk / sit / talk.
+    /// Procedural fallback only when Resources/Jarvis/HumanoidBody is missing.
     /// </summary>
     [DefaultExecutionOrder(50)]
     public class HologramBody : MonoBehaviour
@@ -13,6 +13,13 @@ namespace QuestJarvis
         public Transform Head { get; private set; }
         public bool Busy { get; private set; }
         public bool IsSitting { get; private set; }
+
+        Animator _animator;
+        GameObject _modelRoot;
+        Renderer[] _renderers;
+        Material _bodyMat;
+        Material _eyeMat;
+        bool _humanoid;
 
         Transform _hips;
         Transform _spine;
@@ -28,14 +35,15 @@ namespace QuestJarvis
         Transform _thighR;
         Transform _shinR;
 
-        Material _bodyMat;
-        Material _eyeMat;
         float _dissolve;
         float _sit;
         float _walk;
         float _talk;
         float _walkPhase;
         float _faceYaw;
+        static readonly int SpeedHash = Animator.StringToHash("Speed");
+        static readonly int SitHash = Animator.StringToHash("Sit");
+        static readonly int TalkHash = Animator.StringToHash("Talk");
 
         const float HipHeight = 0.96f;
         const float AimAngle = 25f;
@@ -43,57 +51,99 @@ namespace QuestJarvis
 
         public void Build()
         {
+            if (TryBuildHumanoid())
+            {
+                _humanoid = true;
+                Debug.Log("[Jarvis] hologram humanoid rig");
+                return;
+            }
+            _humanoid = false;
+            BuildProcedural();
+            Debug.Log("[Jarvis] hologram procedural fallback");
+        }
+
+        bool TryBuildHumanoid()
+        {
+            var prefab = Resources.Load<GameObject>("Jarvis/HumanoidBody");
+            if (prefab == null)
+                return false;
+
+            _modelRoot = Instantiate(prefab, transform, false);
+            _modelRoot.name = "HumanoidMesh";
+            _modelRoot.transform.localPosition = Vector3.zero;
+            _modelRoot.transform.localRotation = Quaternion.identity;
+            _modelRoot.transform.localScale = Vector3.one;
+
+            _animator = _modelRoot.GetComponent<Animator>();
+            if (_animator == null)
+                _animator = _modelRoot.GetComponentInChildren<Animator>();
+            _renderers = _modelRoot.GetComponentsInChildren<Renderer>(true);
+            _bodyMat = MakeHoloMat(new Color(0.2f, 0.95f, 1f, 0.72f), 2.2f);
+            ApplyDissolveToRenderers(0f);
+
+            Head = FindHead(_modelRoot.transform);
+            if (Head == null)
+                Head = _modelRoot.transform;
+
+            var aim = gameObject.AddComponent<CapsuleCollider>();
+            aim.center = new Vector3(0f, 0.9f, 0f);
+            aim.height = 1.75f;
+            aim.radius = 0.28f;
+            aim.isTrigger = true;
+            return true;
+        }
+
+        static Transform FindHead(Transform root)
+        {
+            if (root == null)
+                return null;
+            foreach (var t in root.GetComponentsInChildren<Transform>(true))
+            {
+                var n = t.name.ToLowerInvariant();
+                if (n.Contains("head") && !n.Contains("headtop") && !n.Contains("end"))
+                    return t;
+            }
+            return null;
+        }
+
+        void BuildProcedural()
+        {
             _bodyMat = MakeHoloMat(new Color(0.2f, 0.95f, 1f, 0.88f), 2.8f);
             _eyeMat = MakeHoloMat(new Color(0.85f, 1f, 1f, 1f), 3.6f);
-            if (_bodyMat == null)
-                Debug.LogError("[Jarvis] hologram body material is null");
-            else
-                Debug.Log("[Jarvis] hologram material shader=" + _bodyMat.shader.name);
 
             _hips = transform;
             Limb(_hips, PrimitiveType.Sphere, new Vector3(0.22f, 0.16f, 0.16f), Vector3.zero, _bodyMat);
 
             _spine = Joint("Spine", _hips, new Vector3(0f, 0.12f, 0f));
-            Limb(_spine, PrimitiveType.Capsule, new Vector3(0.20f, 0.16f, 0.12f), new Vector3(0f, 0.08f, 0f), _bodyMat);
+            Limb(_spine, PrimitiveType.Capsule, new Vector3(0.16f, 0.12f, 0.12f), new Vector3(0f, 0.06f, 0f), _bodyMat);
 
-            _chest = Joint("Chest", _spine, new Vector3(0f, 0.18f, 0f));
-            Limb(_chest, PrimitiveType.Capsule, new Vector3(0.30f, 0.20f, 0.14f), new Vector3(0f, 0.08f, 0f), _bodyMat);
-            Limb(_chest, PrimitiveType.Capsule, new Vector3(0.40f, 0.07f, 0.08f), new Vector3(0f, 0.16f, 0f), _bodyMat);
+            _chest = Joint("Chest", _spine, new Vector3(0f, 0.16f, 0f));
+            Limb(_chest, PrimitiveType.Capsule, new Vector3(0.24f, 0.14f, 0.12f), new Vector3(0f, 0.06f, 0f), _bodyMat);
 
-            _neck = Joint("Neck", _chest, new Vector3(0f, 0.22f, 0f));
-            _head = Joint("Head", _neck, new Vector3(0f, 0.08f, 0f));
+            _neck = Joint("Neck", _chest, new Vector3(0f, 0.18f, 0f));
+            _head = Joint("Head", _neck, new Vector3(0f, 0.07f, 0f));
             Head = _head;
-            Limb(_head, PrimitiveType.Sphere, new Vector3(0.20f, 0.24f, 0.20f), new Vector3(0f, 0.10f, 0f), _bodyMat);
-            Limb(_head, PrimitiveType.Cube, new Vector3(0.035f, 0.012f, 0.01f), new Vector3(-0.045f, 0.12f, 0.09f), _eyeMat);
-            Limb(_head, PrimitiveType.Cube, new Vector3(0.035f, 0.012f, 0.01f), new Vector3(0.045f, 0.12f, 0.09f), _eyeMat);
+            Limb(_head, PrimitiveType.Sphere, new Vector3(0.17f, 0.19f, 0.17f), new Vector3(0f, 0.08f, 0f), _bodyMat);
 
-            _armL = Joint("UpperArmL", _chest, new Vector3(-0.22f, 0.16f, 0f));
-            Limb(_armL, PrimitiveType.Capsule, new Vector3(0.07f, 0.26f, 0.07f), new Vector3(0f, -0.13f, 0f), _bodyMat);
-            _foreL = Joint("ForeArmL", _armL, new Vector3(0f, -0.26f, 0f));
-            Limb(_foreL, PrimitiveType.Capsule, new Vector3(0.06f, 0.24f, 0.06f), new Vector3(0f, -0.12f, 0f), _bodyMat);
-            var handL = Joint("HandL", _foreL, new Vector3(0f, -0.24f, 0f));
-            Limb(handL, PrimitiveType.Sphere, new Vector3(0.07f, 0.08f, 0.04f), Vector3.zero, _bodyMat);
+            _armL = Joint("UpperArmL", _chest, new Vector3(-0.18f, 0.14f, 0f));
+            Limb(_armL, PrimitiveType.Capsule, new Vector3(0.06f, 0.22f, 0.06f), new Vector3(0f, -0.11f, 0f), _bodyMat);
+            _foreL = Joint("ForeArmL", _armL, new Vector3(0f, -0.22f, 0f));
+            Limb(_foreL, PrimitiveType.Capsule, new Vector3(0.05f, 0.20f, 0.05f), new Vector3(0f, -0.10f, 0f), _bodyMat);
 
-            _armR = Joint("UpperArmR", _chest, new Vector3(0.22f, 0.16f, 0f));
-            Limb(_armR, PrimitiveType.Capsule, new Vector3(0.07f, 0.26f, 0.07f), new Vector3(0f, -0.13f, 0f), _bodyMat);
-            _foreR = Joint("ForeArmR", _armR, new Vector3(0f, -0.26f, 0f));
-            Limb(_foreR, PrimitiveType.Capsule, new Vector3(0.06f, 0.24f, 0.06f), new Vector3(0f, -0.12f, 0f), _bodyMat);
-            var handR = Joint("HandR", _foreR, new Vector3(0f, -0.24f, 0f));
-            Limb(handR, PrimitiveType.Sphere, new Vector3(0.07f, 0.08f, 0.04f), Vector3.zero, _bodyMat);
+            _armR = Joint("UpperArmR", _chest, new Vector3(0.18f, 0.14f, 0f));
+            Limb(_armR, PrimitiveType.Capsule, new Vector3(0.06f, 0.22f, 0.06f), new Vector3(0f, -0.11f, 0f), _bodyMat);
+            _foreR = Joint("ForeArmR", _armR, new Vector3(0f, -0.22f, 0f));
+            Limb(_foreR, PrimitiveType.Capsule, new Vector3(0.05f, 0.20f, 0.05f), new Vector3(0f, -0.10f, 0f), _bodyMat);
 
-            _thighL = Joint("ThighL", _hips, new Vector3(-0.10f, -0.04f, 0f));
-            Limb(_thighL, PrimitiveType.Capsule, new Vector3(0.09f, 0.40f, 0.09f), new Vector3(0f, -0.20f, 0f), _bodyMat);
-            _shinL = Joint("ShinL", _thighL, new Vector3(0f, -0.40f, 0f));
-            Limb(_shinL, PrimitiveType.Capsule, new Vector3(0.07f, 0.38f, 0.07f), new Vector3(0f, -0.19f, 0f), _bodyMat);
-            var footL = Joint("FootL", _shinL, new Vector3(0f, -0.38f, 0.04f));
-            Limb(footL, PrimitiveType.Cube, new Vector3(0.08f, 0.04f, 0.16f), Vector3.zero, _bodyMat);
+            _thighL = Joint("ThighL", _hips, new Vector3(-0.09f, -0.02f, 0f));
+            Limb(_thighL, PrimitiveType.Capsule, new Vector3(0.08f, 0.34f, 0.08f), new Vector3(0f, -0.17f, 0f), _bodyMat);
+            _shinL = Joint("ShinL", _thighL, new Vector3(0f, -0.34f, 0f));
+            Limb(_shinL, PrimitiveType.Capsule, new Vector3(0.07f, 0.32f, 0.07f), new Vector3(0f, -0.16f, 0f), _bodyMat);
 
-            _thighR = Joint("ThighR", _hips, new Vector3(0.10f, -0.04f, 0f));
-            Limb(_thighR, PrimitiveType.Capsule, new Vector3(0.09f, 0.40f, 0.09f), new Vector3(0f, -0.20f, 0f), _bodyMat);
-            _shinR = Joint("ShinR", _thighR, new Vector3(0f, -0.40f, 0f));
-            Limb(_shinR, PrimitiveType.Capsule, new Vector3(0.07f, 0.38f, 0.07f), new Vector3(0f, -0.19f, 0f), _bodyMat);
-            var footR = Joint("FootR", _shinR, new Vector3(0f, -0.38f, 0.04f));
-            Limb(footR, PrimitiveType.Cube, new Vector3(0.08f, 0.04f, 0.16f), Vector3.zero, _bodyMat);
+            _thighR = Joint("ThighR", _hips, new Vector3(0.09f, -0.02f, 0f));
+            Limb(_thighR, PrimitiveType.Capsule, new Vector3(0.08f, 0.34f, 0.08f), new Vector3(0f, -0.17f, 0f), _bodyMat);
+            _shinR = Joint("ShinR", _thighR, new Vector3(0f, -0.34f, 0f));
+            Limb(_shinR, PrimitiveType.Capsule, new Vector3(0.07f, 0.32f, 0.07f), new Vector3(0f, -0.16f, 0f), _bodyMat);
 
             var aim = gameObject.AddComponent<CapsuleCollider>();
             aim.center = new Vector3(0f, 0.15f, 0f);
@@ -106,21 +156,11 @@ namespace QuestJarvis
         {
             var shader = Shader.Find("QuestJarvis/HologramScanline");
             if (shader == null || !shader.isSupported)
-            {
-                Debug.LogWarning("[Jarvis] HologramScanline missing/unsupported, using Unlit/Color");
                 shader = Shader.Find("Unlit/Color");
-            }
             if (shader == null)
                 shader = Shader.Find("Sprites/Default");
             if (shader == null)
-                shader = Shader.Find("UI/Default");
-            if (shader == null)
-            {
-                Debug.LogError("[Jarvis] no unlit shader found — hologram may be invisible");
-                shader = Shader.Find("Standard");
-                if (shader == null)
-                    return null;
-            }
+                return null;
             var mat = new Material(shader);
             mat.color = color;
             if (mat.HasProperty("_Color"))
@@ -189,6 +229,8 @@ namespace QuestJarvis
         public void SetTalking(bool talking)
         {
             _talk = talking ? 1f : 0f;
+            if (_animator != null)
+                _animator.SetBool(TalkHash, talking);
         }
 
         public void StandAt(Vector3 floorPoint, Vector3 lookAt)
@@ -198,6 +240,7 @@ namespace QuestJarvis
             IsSitting = false;
             _sit = 0f;
             _walk = 0f;
+            SetAnimatorLocomotion(0f, false);
             PlaceHips(floorPoint + Vector3.up * HipHeight, lookAt);
             SetDissolve(0f);
         }
@@ -222,6 +265,7 @@ namespace QuestJarvis
             IsSitting = false;
             _sit = 0f;
             _walk = 1f;
+            SetAnimatorLocomotion(1f, false);
             var dest = floorPoint + Vector3.up * HipHeight;
             while (Vector3.Distance(transform.position, dest) > 0.08f)
             {
@@ -233,6 +277,7 @@ namespace QuestJarvis
             transform.position = dest;
             Face(lookBeyond);
             _walk = 0f;
+            SetAnimatorLocomotion(0f, false);
             Busy = false;
         }
 
@@ -240,13 +285,23 @@ namespace QuestJarvis
         {
             Busy = true;
             _walk = 0f;
+            SetAnimatorLocomotion(0f, false);
             yield return Dissolve(1f, 0.45f);
             transform.position = hipsWorld;
             Face(lookAt);
             IsSitting = sit;
             _sit = sit ? 1f : 0f;
+            SetAnimatorLocomotion(0f, sit);
             yield return Dissolve(0f, 0.55f);
             Busy = false;
+        }
+
+        void SetAnimatorLocomotion(float speed, bool sit)
+        {
+            if (_animator == null)
+                return;
+            _animator.SetFloat(SpeedHash, speed);
+            _animator.SetBool(SitHash, sit);
         }
 
         IEnumerator Dissolve(float target, float seconds)
@@ -269,10 +324,34 @@ namespace QuestJarvis
                 _bodyMat.SetFloat("_Dissolve", value);
             if (_eyeMat != null)
                 _eyeMat.SetFloat("_Dissolve", value);
+            ApplyDissolveToRenderers(value);
+        }
+
+        void ApplyDissolveToRenderers(float value)
+        {
+            if (_renderers == null || _bodyMat == null)
+                return;
+            _bodyMat.SetFloat("_Dissolve", value);
+            foreach (var renderer in _renderers)
+            {
+                if (renderer == null)
+                    continue;
+                var mats = renderer.materials;
+                for (int i = 0; i < mats.Length; i++)
+                {
+                    if (mats[i] == null)
+                        mats[i] = _bodyMat;
+                    if (mats[i].HasProperty("_Dissolve"))
+                        mats[i].SetFloat("_Dissolve", value);
+                }
+            }
         }
 
         void Update()
         {
+            if (_humanoid)
+                return;
+
             var cam = JarvisCamera.Find();
             if (_talk > 0f && cam != null)
                 Face(cam.transform.position);

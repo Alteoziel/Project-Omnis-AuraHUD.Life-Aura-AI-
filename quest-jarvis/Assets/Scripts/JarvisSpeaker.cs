@@ -11,6 +11,7 @@ namespace QuestJarvis
     public class JarvisSpeaker : MonoBehaviour
     {
         public bool IsSpeaking { get; private set; }
+        public event Action<string> LineStarted;
 
         AudioSource _source;
         readonly Queue<string> _lines = new Queue<string>();
@@ -36,6 +37,7 @@ namespace QuestJarvis
             _source.spatialBlend = 1f;
             _source.minDistance = 0.4f;
             _source.maxDistance = 8f;
+            _source.volume = 1f;
             _source.playOnAwake = false;
         }
 
@@ -110,6 +112,7 @@ namespace QuestJarvis
             while (_lines.Count > 0)
             {
                 var line = _lines.Dequeue();
+                LineStarted?.Invoke(line);
                 var spoken = false;
                 if (!string.IsNullOrEmpty(JarvisConfig.OpenAiKey))
                 {

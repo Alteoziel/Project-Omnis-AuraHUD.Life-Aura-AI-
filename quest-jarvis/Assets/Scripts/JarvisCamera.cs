@@ -10,6 +10,10 @@ namespace QuestJarvis
     {
         const float FallbackEyeHeight = 1.55f;
 
+        public const float MinPersonalMeters = 1.2f;
+        public const float PreferredStandMeters = 1.65f;
+        public const float MaxReanchorMeters = 3.5f;
+
         public static Camera Find()
         {
             if (Camera.main != null && Camera.main.enabled)
@@ -91,6 +95,49 @@ namespace QuestJarvis
             floorPoint = lookAt + forward * distance;
             floorPoint.y = floorY;
             return true;
+        }
+
+        public static float FlatDistanceToCamera(Vector3 worldPoint)
+        {
+            var cam = Find();
+            if (cam == null)
+                return float.MaxValue;
+            var flat = worldPoint - cam.transform.position;
+            flat.y = 0f;
+            return flat.magnitude;
+        }
+
+        /// <summary>
+        /// Keeps a floor point at least minMeters from the headset on the XZ plane.
+        /// </summary>
+        public static void EnforcePersonalSpace(ref Vector3 floorPoint, float floorY, float minMeters)
+        {
+            var cam = Find();
+            if (cam == null)
+                return;
+            var origin = cam.transform.position;
+            var flat = floorPoint - origin;
+            flat.y = 0f;
+            if (flat.sqrMagnitude < minMeters * minMeters)
+            {
+                var dir = flat.sqrMagnitude > 0.0001f ? flat.normalized : ForwardFlat(cam);
+                floorPoint = origin + dir * minMeters;
+            }
+            floorPoint.y = floorY;
+        }
+
+        public static bool IsTooClose(Vector3 worldPoint, float minMeters)
+        {
+            return FlatDistanceToCamera(worldPoint) < minMeters;
+        }
+
+        static Vector3 ForwardFlat(Camera cam)
+        {
+            var forward = cam != null ? cam.transform.forward : Vector3.forward;
+            forward.y = 0f;
+            if (forward.sqrMagnitude < 0.01f)
+                forward = Vector3.forward;
+            return forward.normalized;
         }
     }
 }

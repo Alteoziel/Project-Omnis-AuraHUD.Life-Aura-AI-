@@ -29,11 +29,21 @@ namespace QuestJarvis
         }
 
         [Serializable]
+        public class Note
+        {
+            public string id;
+            public string text;
+            public long at;
+        }
+
+        [Serializable]
         public class FileBlob
         {
             public long savedAt;
             public List<Line> lines = new List<Line>();
             public List<Reminder> reminders = new List<Reminder>();
+            public List<Note> notes = new List<Note>();
+            public List<string> priorities = new List<string>();
         }
 
         public static FileBlob Data { get; private set; } = new FileBlob();
@@ -54,7 +64,13 @@ namespace QuestJarvis
                 Data.lines = new List<Line>();
             if (Data.reminders == null)
                 Data.reminders = new List<Reminder>();
-            Debug.Log("[Jarvis] memory lines=" + Data.lines.Count + " reminders=" + Data.reminders.Count);
+            if (Data.notes == null)
+                Data.notes = new List<Note>();
+            if (Data.priorities == null)
+                Data.priorities = new List<string>();
+            while (Data.priorities.Count < 3)
+                Data.priorities.Add("");
+            Debug.Log("[Jarvis] memory lines=" + Data.lines.Count + " reminders=" + Data.reminders.Count + " notes=" + Data.notes.Count);
         }
 
         public static void AddLine(string who, string text)
@@ -67,6 +83,31 @@ namespace QuestJarvis
             });
             if (Data.lines.Count > 200)
                 Data.lines.RemoveAt(0);
+            Save();
+        }
+
+        public static Note AddNote(string text)
+        {
+            var note = new Note
+            {
+                id = Guid.NewGuid().ToString("N"),
+                text = text,
+                at = Now()
+            };
+            Data.notes.Add(note);
+            if (Data.notes.Count > 80)
+                Data.notes.RemoveAt(0);
+            Save();
+            return note;
+        }
+
+        public static void SetPriority(int index, string text)
+        {
+            while (Data.priorities.Count < 3)
+                Data.priorities.Add("");
+            if (index < 0 || index >= 3)
+                return;
+            Data.priorities[index] = text ?? "";
             Save();
         }
 

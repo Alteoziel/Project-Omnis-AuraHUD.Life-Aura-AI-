@@ -26,6 +26,7 @@ namespace QuestJarvis.Editor
                 ConfigureMeta();
                 CreateScene();
                 WriteVoiceFile();
+                JarvisHumanoidSetup.EnsureHumanoid();
                 AssetDatabase.SaveAssets();
                 Debug.Log("[Jarvis] setup complete " + Application.unityVersion);
                 EditorApplication.Exit(0);
@@ -47,6 +48,7 @@ namespace QuestJarvis.Editor
                 if (!File.Exists(ScenePath))
                     CreateScene();
                 WriteVoiceFile();
+                JarvisHumanoidSetup.EnsureHumanoid();
                 AssetDatabase.SaveAssets();
                 var outPath = Path.GetFullPath(Path.Combine(Application.dataPath, "..", "Builds", "QuestJarvis-debug.apk"));
                 Directory.CreateDirectory(Path.GetDirectoryName(outPath));

@@ -12,8 +12,11 @@ namespace QuestJarvis
         Text _searchText;
         Canvas _status;
         Text _statusText;
+        Canvas _voice;
+        Text _voiceText;
         float _captionUntil;
         float _statusUntil;
+        float _voiceUntil;
 
         public void Build(Transform follow)
         {
@@ -30,6 +33,35 @@ namespace QuestJarvis
             _status = MakeCameraStatus();
             _statusText = MakeText(_status.transform, 30, TextAnchor.MiddleCenter);
             _status.gameObject.SetActive(false);
+
+            _voice = MakeCameraStatus();
+            _voice.name = "VoiceHud";
+            var voiceRect = _voice.GetComponent<RectTransform>();
+            voiceRect.sizeDelta = new Vector2(920f, 100f);
+            _voiceText = MakeText(_voice.transform, 26, TextAnchor.MiddleCenter);
+            _voice.gameObject.SetActive(false);
+        }
+
+        public void ShowHeard(string text)
+        {
+            ShowVoiceLine("HEARD", text, 4f);
+        }
+
+        public void ShowSaying(string text)
+        {
+            ShowVoiceLine("SAYING", text, 12f);
+        }
+
+        void ShowVoiceLine(string label, string text, float seconds)
+        {
+            if (_voice == null || _voiceText == null)
+                return;
+            var trimmed = string.IsNullOrEmpty(text) ? "…" : text;
+            if (trimmed.Length > 120)
+                trimmed = trimmed.Substring(0, 117) + "...";
+            _voiceText.text = label + ": " + trimmed;
+            _voice.gameObject.SetActive(true);
+            _voiceUntil = Time.time + seconds;
         }
 
         Canvas MakeCameraStatus()
@@ -130,8 +162,14 @@ namespace QuestJarvis
             _search.gameObject.SetActive(true);
         }
 
-        public static GameObject DoorNote(Transform door, Vector3 worldPos, Quaternion worldRot, string text)
+        public static GameObject PlaceNote(string place, Transform door, Vector3 worldPos, Quaternion worldRot, string text)
         {
+            return DoorNote(place, door, worldPos, worldRot, text);
+        }
+
+        public static GameObject DoorNote(string place, Transform door, Vector3 worldPos, Quaternion worldRot, string text)
+        {
+            var title = string.IsNullOrEmpty(place) ? "Door" : char.ToUpper(place[0]) + place.Substring(1);
             var font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
             if (font == null)
                 font = Font.CreateDynamicFontFromOSFont("Arial", 32);
@@ -169,7 +207,7 @@ namespace QuestJarvis
             label.alignment = TextAnchor.MiddleCenter;
             label.color = new Color(0.7f, 1f, 1f, 0.95f);
             label.horizontalOverflow = HorizontalWrapMode.Wrap;
-            label.text = "Door\n" + text;
+            label.text = title + "\n" + text;
             return root;
         }
 
@@ -197,6 +235,18 @@ namespace QuestJarvis
                 _status.transform.rotation = Quaternion.LookRotation(_status.transform.position - cam.transform.position);
                 if (Time.time > _statusUntil)
                     _status.gameObject.SetActive(false);
+            }
+            if (_voice != null && _voice.gameObject.activeSelf)
+            {
+                var forward = cam.transform.forward;
+                forward.y = 0f;
+                if (forward.sqrMagnitude < 0.01f)
+                    forward = cam.transform.forward;
+                forward.Normalize();
+                _voice.transform.position = cam.transform.position + forward * 1.05f + Vector3.up * -0.06f;
+                _voice.transform.rotation = Quaternion.LookRotation(_voice.transform.position - cam.transform.position);
+                if (Time.time > _voiceUntil)
+                    _voice.gameObject.SetActive(false);
             }
         }
     }
